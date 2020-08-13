@@ -1,0 +1,26 @@
+---
+name: Best fruit
+desc_markdown: fruit.md
+allowed_participant:
+  - John
+  - Bob
+  - Isaac
+  - Cyril
+due_date: "2020-08-16 14:05:30"
+choices:
+  - name: pear
+    description: A *pear* is good
+    vote:
+      - 3
+      - 4
+    voter:
+      - John
+      - Bob
+  - name: apple
+    description: An *apple* a day...
+    vote:
+      - 5
+      - 2
+    voter:
+      - John
+      - Bob

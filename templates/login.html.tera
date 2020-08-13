@@ -1,0 +1,9 @@
+<h3>Welcome to {{ site_name }}</h3>
+<i>Credentials are required to access this website</i>
+<form method="post" action="{{ dest }}">
+<ul class="form">
+<li><span>Username</span><span><input name="name" type="text"/></span></li>
+<li><span>Password</span><span><input name="password" type="password"/></span></li>
+<li><button type="submit" name="submit"/>Send</li>
+</ul>
+</form>
