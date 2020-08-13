@@ -89,4 +89,8 @@ ajax('poll_list', updateDialog, uponError, {});
 window.onload = function() 
 {
     showLogOut();
+    delegateEvent($('div.dialog').a[0], 'click', '.loadVote', function(e)
+    {
+        ajax($(e).attr('data-href'), updateDialog, uponError, {});
+    });
 }

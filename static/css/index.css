@@ -286,3 +286,29 @@ ul.form button:hover {
     font-size: 1.6rem;
     font-weight: 400;
 }
+
+p.loadVote {
+    background: #65B7FD;
+    border-radius: 10px;
+    color: #FFF;
+    width: max-content;
+    padding: 0 2em;
+    margin: 0 auto;
+    cursor: pointer;
+    transition: all ease 0.3s;    
+}
+p.loadVote:hover::before {
+    padding-right: 0.3em;
+    padding-left: 0.7em;
+    color: #EEE44A;
+    text-shadow: 0 0 5px #FFF;
+}
+p.loadVote::before {
+    content: "\25B6";
+    padding-right: 1em;
+    font-size: 0.8rem;
+    transition: all ease 0.3s;
+}
+p.loadVote:hover {
+    background: #3D86C6;
+}

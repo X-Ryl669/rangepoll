@@ -13,13 +13,13 @@ use rocket_contrib::templates::Template;
 use rocket::http::{Cookies, Cookie};
 use rocket::response::{Flash, Redirect};
 use rocket::request::LenientForm;
-use rocket::Request;
 use rocket::config::{Config, Environment};
+
+// Let authentication be checked with Request Guard
+use rocket::request::{self, Request, FromRequest};
 
 mod poll;
 mod voters;
-//use poll::p;
-//use voters::*;
 
 #[derive(FromForm)]
 struct User {
@@ -27,10 +27,27 @@ struct User {
     password: String,
 }
 
-#[derive(FromForm)]
-struct AdminUser {
+#[derive(Debug)]
+struct Voter {
     name: String,
-    password: String,
+}
+
+#[derive(Debug)]
+enum LoginError {
+    Missing,
+    Invalid,
+}
+
+impl<'a, 'r> FromRequest<'a, 'r> for Voter {
+    type Error = ();
+
+    fn from_request(request: &'a Request<'r>) -> request::Outcome<Voter, ()> {
+        let mut cookies = request.cookies();
+        match cookies.get_private("auth") {
+            Some(cookie) => request::Outcome::Success(Voter{ name: cookie.value().to_string()}),
+            None => request::Outcome::Forward(())
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -99,12 +116,13 @@ fn not_found(req: &Request) -> Template {
 }
 
 // Asynchronous javascript methods here
-#[get("/poll_list")]
-fn poll_list(mut cookies: Cookies) -> Result<Template, Flash<Redirect>> {
-    let auth_token = cookies.get_private("auth");
+#[get("/poll_list", rank=1)]
+fn poll_list(voter: Voter) -> Result<Template, Flash<Redirect>> {
+/*    let auth_token = cookies.get_private("auth");
     if auth_token.is_none() {
         Err(Flash::error(Redirect::to("/login"), "Invalid credentials"))
     } else {
+        */
         let mut map = HashMap::new();
         // Need to extract all available polls
         let polls = match poll::poll::get_poll_desc_list() {
@@ -113,8 +131,30 @@ fn poll_list(mut cookies: Cookies) -> Result<Template, Flash<Redirect>> {
         };
         map.insert("polls", polls);
         Ok(Template::render("poll_list", &map))
-    }
+//    }
 }
+#[get("/poll_list", rank=2)]
+fn poll_list_not_logged() -> Flash<Redirect> {
+    Flash::error(Redirect::to("/login"), "Invalid credentials")
+}
+
+#[get("/vote_for/<poll>", rank=1)]
+fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
+    let mut map = HashMap::new();
+    // Need to extract all available polls
+    let polls = match poll::poll::get_poll_desc_list() {
+        Ok(v) => v,
+        Err(_) => { return Err(Flash::error(Redirect::to("/error/404"), "Poll not found")); },
+    };
+    map.insert("polls", polls);
+    Ok(Template::render("vote_for", &map))
+}
+#[get("/vote_for/<_poll>", rank=2)]
+fn vote_for_not_logged(_poll: String) -> Flash<Redirect> {
+    Flash::error(Redirect::to("/login"), "Invalid credentials")
+}
+
+
 /*
 #[get("/login")]
 fn login(cookies: Cookies) -> &'static str {
@@ -198,7 +238,13 @@ fn main() {
      .mount("/", routes![index])
      .mount("/static", routes![static_files])
      // Ajax below
-     .mount("/", routes![poll_list, login, post_login, logout])
+     // Login or logout
+     .mount("/", routes![login, post_login, logout])
+     // Asynchronous application
+     .mount("/", routes![poll_list, vote_for])
+     // Not logged in async routes
+     .mount("/", routes![poll_list_not_logged, vote_for_not_logged])
+
      // Static below
      .mount("/public", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")))
      .register(catchers![not_found])

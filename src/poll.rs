@@ -8,6 +8,8 @@ pub mod poll {
     use chrono::{DateTime, Utc};
     use std::fs;
     use std::path::Path;
+    use std::error;
+    use std::fmt;
 
     pub const DUE_FORMAT: &'static str = "%Y-%m-%d";
 
@@ -23,6 +25,26 @@ pub mod poll {
         vote: Vec<usize>,
         voter: Vec<String>,
     }
+
+    // This is the parsed choice from a file
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    pub struct ParsedChoice {
+        name: String,
+        desc: String,
+        vote: Vec<usize>,
+        voter: Vec<String>,
+    }
+    impl ParsedChoice {
+        fn new(choice: Choice, path: &Path) -> Result<ParsedChoice, NoFileOrYAMLParsingError> {
+            Ok(ParsedChoice { 
+                name: choice.name.clone(),
+                desc: build_desc(&choice.description, &choice.desc_markdown, path)?,
+                vote: choice.vote.clone(),
+                voter: choice.voter.clone(),
+            })
+        }
+    }
+
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct Poll {
@@ -47,6 +69,33 @@ pub mod poll {
         choices: Vec<Choice>,
     }
 
+    // This is for the parsed poll from a file
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    pub struct ParsedPoll {
+        name: String,
+        desc: String,
+        filepath: String,
+        allowed_participant: Vec<String>,
+        due_date: String,
+        due_near: bool,
+        choices: Vec<ParsedChoice>,
+    }
+
+    impl ParsedPoll {
+        fn new(poll: &Poll) -> ParsedPoll {
+            ParsedPoll { 
+                name: poll.name.clone(), 
+                desc: poll.desc.clone(), 
+                filepath: poll.filepath.clone(), 
+                allowed_participant: poll.allowed_participant.clone(), 
+                due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
+                due_near: false,
+                choices: vec![],
+            }
+        }
+    }
+
+    // This is for the poll list output
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct PollDesc {
         name: String,
@@ -55,6 +104,49 @@ pub mod poll {
         due_date: String,
         due_near: bool,
     }
+
+    // The "no file or yaml error type"
+    #[derive(Debug)]
+    pub enum NoFileOrYAMLParsingError {
+        IOError(std::io::Error),
+        YAMLError(serde_yaml::Error),
+    }
+    impl fmt::Display for NoFileOrYAMLParsingError {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                NoFileOrYAMLParsingError::IOError(ref e) => e.fmt(f),
+                // This is a wrapper, so defer to the underlying types' implementation of `fmt`.
+                NoFileOrYAMLParsingError::YAMLError(ref e) => e.fmt(f),
+            }
+        }
+    }
+
+    impl error::Error for NoFileOrYAMLParsingError {
+        fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+            match *self {
+                NoFileOrYAMLParsingError::IOError(ref e) => Some(e),
+                // The cause is the underlying implementation error type. Is implicitly
+                // cast to the trait object `&error::Error`. This works because the
+                // underlying type already implements the `Error` trait.
+                NoFileOrYAMLParsingError::YAMLError(ref e) => Some(e),
+            }
+        }
+    }
+
+    // Implement the conversion from `serde_yaml::Error` to `NoFileOrYAMLParsingError`.
+    // This will be automatically called by `?` if a `serde_yaml::Error`
+    // needs to be converted into a `NoFileOrYAMLParsingError`.
+    impl From<serde_yaml::Error> for NoFileOrYAMLParsingError {
+        fn from(err: serde_yaml::Error) -> NoFileOrYAMLParsingError {
+            NoFileOrYAMLParsingError::YAMLError(err)
+        }
+    }
+    impl From<std::io::Error> for NoFileOrYAMLParsingError {
+        fn from(err: std::io::Error) -> NoFileOrYAMLParsingError {
+            NoFileOrYAMLParsingError::IOError(err)
+        }
+    }
+
 
     // Our custom date formatter
     mod date_serde {
@@ -76,29 +168,56 @@ pub mod poll {
         }
     }
 
-    pub fn parse_poll_file(path: &Path) -> Result<Poll, serde_yaml::Error> {
-        let content = fs::read_to_string(path).expect("<FailureToReadFile>");
+    pub fn build_desc(description: &Option<String>, desc_markdown: &Option<String>, path: &Path) -> Result<String, NoFileOrYAMLParsingError> {
+        if description.is_none() && desc_markdown.is_none() {
+            Ok(path.to_str().unwrap().to_string())
+        } else if description.is_none() && desc_markdown.is_some() {
+            // Read the given file and convert to HTML here
+            let rel_path_to_md_file = path.with_file_name(desc_markdown.as_ref().unwrap().clone());
+            let md_content = fs::read_to_string(rel_path_to_md_file)?;
+            Ok(markdown_to_html(&md_content, &ComrakOptions::default()))
+        } else {
+            Ok(description.as_ref().unwrap().clone())
+        }
+    }
+
+    pub fn parse_poll_file(path: &Path) -> Result<Poll, NoFileOrYAMLParsingError> {
+        let content = fs::read_to_string(path)?;
         //let poll: Poll = serde_yaml::from_reader(fs::File::open(path).expect("Unable to read file"))?;
         let mut poll: Poll = serde_yaml::from_str(&content)?;
         // If we don't have a description, let's fetch from markdown
-        if poll.description.is_none() && poll.desc_markdown.is_none() {
-            poll.desc = poll.name.clone();
-        } else if poll.description.is_none() && poll.desc_markdown.is_some() {
-            // Read the given file and convert to HTML here
-            let rel_path_to_md_file = path.with_file_name(poll.desc_markdown.as_ref().unwrap().clone());
-            let md_content = fs::read_to_string(rel_path_to_md_file).expect("<FailedToFindMarkdown>");
-            poll.desc = markdown_to_html(&md_content, &ComrakOptions::default());
-        } else {
-            poll.desc = poll.description.as_ref().unwrap().clone();
-        }
+        poll.desc = build_desc(&poll.description, &poll.desc_markdown, path)?;
         poll.filepath = path.to_str().unwrap().to_string();
         return Ok(poll);
-    //    let polls = YamlLoader::load_from_str(content).unwrap();
-    //    let poll = &polls[0];
-
-    //    return  Poll(name: poll["name"][0].as_str(), desc_markdown: fs::read_to_string(poll["desc"][0].as_str()))
     }
 
+    pub fn find_poll_desc(name: String) -> Result<Poll, NoFileOrYAMLParsingError> {
+        // Get all poll and find the one with the good file
+        let polls = get_poll_list()?;
+        for entry in polls {
+            match Path::new(&entry.filepath).file_stem() {
+                Some(n) => {
+                    if name.as_str() == n {
+                        return Ok(entry);
+                    }
+                },
+                None => {},
+            }
+        }
+        return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::NotFound, name + " not found")));
+    }
+
+    pub fn get_poll_desc(name: String) -> Result<ParsedPoll, NoFileOrYAMLParsingError> {
+        let poll = find_poll_desc(name)?;
+        // Copy all fields here
+        let mut output = ParsedPoll::new(&poll);
+
+        for entry in poll.choices {
+            let path = poll.filepath.clone();
+            output.choices.push(ParsedChoice::new(entry, Path::new(&path))?);
+        }
+        return Ok(output);
+    }
     pub fn get_poll_list() -> Result<Vec<Poll>, serde_yaml::Error> {
         let polls = glob(concat!(env!("CARGO_MANIFEST_DIR"), "/polls/*.yml")).expect("Failed to read glob pattern");
         let mut output = Vec::new();
