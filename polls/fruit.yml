@@ -9,7 +9,7 @@ allowed_participant:
 due_date: "2020-08-16 14:05:30"
 choices:
   - name: pear
-    description: A *pear* is good
+    desc_markdown: pear.md
     vote:
       - 3
       - 4
@@ -17,7 +17,7 @@ choices:
       - John
       - Bob
   - name: apple
-    description: An *apple* a day...
+    description: An apple a day...
     vote:
       - 5
       - 2

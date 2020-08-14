@@ -145,6 +145,27 @@ html {
 
 body { padding: 1em; }
 
+a.user {
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    text-decoration: none;
+    color: #000;
+}
+a.user::after {
+    content: ' ';
+    position: absolute;
+    transition: all ease 0.3s;
+    top: 10px;
+    font-weight: bold;
+}
+a.user:hover::after {
+    content: 'Log out';
+    right: 0px;
+    width: max-content;
+    top: 20px;
+    color: #800;
+}
 
 div.dialog
 {
@@ -202,7 +223,7 @@ ul.form li span:last-child input {
 ul.form li span input:focus {
     border-bottom: 2px solid #008;
 }
-ul.form button {
+ul.form button, .downHeader2 button {
     padding: 0.1em 5em;
     margin: 1em auto;
     display: block;
@@ -221,7 +242,7 @@ ul.form button:hover {
     color: #008;
 }
 
-#polls {
+#polls, #votes {
     max-width: 100vw;
     margin: auto;
     display: grid;
@@ -235,7 +256,7 @@ ul.form button:hover {
     box-shadow: 0 0 5px inset;
 }
 
-.pollList {
+.pollList, .voteList {
     background: #fff;
     border-radius: 10px;
     -webkit-box-shadow: 0 -5px 3px rgba(0,0,0,0.1) inset,0 3px 3px rgba(0,0,0,0.2);
@@ -258,34 +279,39 @@ ul.form button:hover {
     background: #E1AAAA;
 }
 
-.pollList h1 {
+.downHeader h1 {
     font-size: 1.414rem;
 }
 
-.pollList h2 {
+.downHeader h2, .downHeader2 h1 {
   font-size: 1.121rem;
+  white-space: nowrap;
 }
 
-.pollList h3 {
+.downHeader h3, .downHeader2 h2 {
   font-size: 0.88rem;
 }
 
-.pollList h4 {
+.downHeader h4, .downHeader2 h3 {
   font-size: 0.88rem;
 }
 
-.pollList h5 {
+.downHeader h5, .downHeader2 h4 {
     font-size: 0.88rem;
 }
 
-.pollList h6 {
+.downHeader h6, .downHeader2 h5, .downHeader2 h6 {
     font-size: .88rem;
 }
 
-.pollList > h1 {
+.downHeader > h1 {
     font-size: 1.6rem;
     font-weight: 400;
 }
+.downHeader2 > h1 {
+    font-size: 2.6em;
+}
+
 
 p.loadVote {
     background: #65B7FD;
@@ -311,4 +337,102 @@ p.loadVote::before {
 }
 p.loadVote:hover {
     background: #3D86C6;
+}
+
+div.participant title {
+    font-weight: bold;
+    display: block;
+}
+div.participant ul {
+    margin: auto;
+    width: max-content;
+    background: #CDDEEC;
+    padding: 0 2em;
+    border-radius: 10px;
+}
+div.participant li {
+    display: inline-block;
+}
+div.participant ul > li:not(:last-child)::after {
+    content: "\00b7";
+    margin: 0 .4em;
+}
+div.participant li.current {
+    font-weight: 500;
+}
+div.participant {
+    width: 50%;
+    float: left;
+}
+hr {
+    clear: both;
+    border: none;
+}
+
+div.rating input {
+    display: none;
+}
+div.rating label::before {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 171 164"><path fill="none" stroke="%23000" stroke-linecap="round" stroke-width="7" d="M167 61c1 3-53 34-53 37-1 3 26 58 24 60-3 2-49-40-52-40-3 1-47 44-49 42-3-2 22-58 21-61S3 67 4 65c0-3 62 3 64 1 3-1 13-62 16-62 3-1 16 60 18 62 3 1 64-8 65-5z" opacity=".9"/></svg>');
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    background-size: 32px 32px;
+    content: '';
+    margin-right: 1px;
+    transition: all ease 0.3s;
+}
+div.rating input:checked ~ label::before, 
+div.rating:not(:checked) > label:hover::before, 
+div.rating:not(:checked) > label:hover ~ label::before
+{
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 171 164"><defs><linearGradient id="d"><stop offset="0" stop-color="%237f5716"/><stop offset=".4" stop-color="%23e1d3b8"/><stop offset=".5" stop-color="%23f4e2bd"/><stop offset=".5" stop-color="%23c4ab75"/><stop offset="1" stop-color="%23876616"/></linearGradient><linearGradient id="c"><stop offset="0" stop-color="%23865b17"/><stop offset=".6" stop-color="%23f9f4ec"/><stop offset=".8" stop-color="%23d1a45a"/><stop offset=".8" stop-color="%23faf2e4"/><stop offset="1" stop-color="%237f5716"/></linearGradient><linearGradient id="b"><stop offset="0" stop-color="%237f5716"/><stop offset=".5" stop-color="%23c8a362"/><stop offset=".6" stop-color="%23f6e5ca"/><stop offset="1" stop-color="%237f5716"/></linearGradient><linearGradient id="a"><stop offset="0" stop-color="%237f5716"/><stop offset=".2" stop-color="%23ede6db"/><stop offset=".2" stop-color="%239b7945"/><stop offset=".3" stop-color="%23f9f0df"/><stop offset="1" stop-color="%23876616"/></linearGradient><linearGradient id="h" x1="378" x2="680.6" y1="627" y2="832.8" gradientUnits="userSpaceOnUse" xlink:href="%23a"/><linearGradient id="f" x1="275.8" x2="378" y1="700.5" y2="627" gradientUnits="userSpaceOnUse" xlink:href="%23b"/><linearGradient id="e" x1="378" x2="273" y1="1052.7" y2="704.2" gradientUnits="userSpaceOnUse" xlink:href="%23c"/><linearGradient id="g" x1="378" x2="680.1" y1="1052.7" y2="833.2" gradientUnits="userSpaceOnUse" xlink:href="%23d"/></defs><g stroke-width=".5"><path fill="url(%23e)" d="M273 704C249 725 75 833 75 833s231-18 240-12c9 7 63 232 63 232V737z" opacity=".9" transform="scale(-.26458 .26458) rotate(-35 -612 1665)"/><path fill="url(%23f)" d="M273 704l105 33V627c-11 0-187-150-187-150-8-8 88 214 85 224l-3 3z" opacity=".9" transform="scale(-.26458 .26458) rotate(-35 -612 1665)"/><path fill="url(%23g)" d="M378 737v316s54-225 63-232c9-6 229 21 239 12z" opacity=".9" transform="scale(-.26458 .26458) rotate(-35 -612 1665)"/><path fill="url(%23h)" d="M378 737l302 96h1S484 712 480 701c-3-10 85-224 85-224L378 627z" opacity=".9" transform="scale(-.26458 .26458) rotate(-35 -612 1665)"/></g><path fill="none" stroke="%23000" stroke-linecap="round" stroke-width="7" d="M167 61c1 3-53 34-53 37-1 3 26 58 24 60-3 2-49-40-52-40-3 1-47 44-49 42-3-2 22-58 21-61S3 67 4 65c0-3 62 3 64 1 3-1 13-62 16-62 3-1 16 60 18 62 3 1 64-8 65-5z" opacity=".9"/></svg>');
+    background-size: 32px 32px;
+}
+div.rating label 
+{
+    position: relative;
+    float: right;
+}
+div.rating:hover label::before {
+    filter: blur(1px);
+}
+div.rating:not(:checked) > label:hover ~ label::before, 
+div.rating:not(:checked) > label:hover::before {
+    filter: blur(0px);
+}
+div.rating {
+    width: max-content;
+    height: 2em;
+    margin: auto;
+}
+div.voteList > h1:first-child {
+    font-size: 1.4rem;
+    font-weight: 400;
+}
+.descVote {
+    text-align: left;
+    margin-top: 1em;
+}
+#votes {
+    margin: 2em auto;
+}
+.downHeader2 button { background: #fff2ca; }
+.downHeader2 button:hover {
+    background: #FFF8E0;
+    box-shadow: 0 0 5px #888;
+    color: #008;
+}
+.voteList.notActive {
+    background: #DDD;
+    transition: all ease 0.3s;
+    filter: blur(1px);
+}
+button.flash {
+    animation: blinker 1.5s linear 5;
+}
+@keyframes blinker {
+    50% {
+        box-shadow: 0 0 8px #800;
+    }
 }

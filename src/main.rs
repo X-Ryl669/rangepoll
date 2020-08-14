@@ -32,12 +32,6 @@ struct Voter {
     name: String,
 }
 
-#[derive(Debug)]
-enum LoginError {
-    Missing,
-    Invalid,
-}
-
 impl<'a, 'r> FromRequest<'a, 'r> for Voter {
     type Error = ();
 
@@ -117,7 +111,7 @@ fn not_found(req: &Request) -> Template {
 
 // Asynchronous javascript methods here
 #[get("/poll_list", rank=1)]
-fn poll_list(voter: Voter) -> Result<Template, Flash<Redirect>> {
+fn poll_list(_voter: Voter) -> Result<Template, Flash<Redirect>> {
 /*    let auth_token = cookies.get_private("auth");
     if auth_token.is_none() {
         Err(Flash::error(Redirect::to("/login"), "Invalid credentials"))
@@ -140,18 +134,45 @@ fn poll_list_not_logged() -> Flash<Redirect> {
 
 #[get("/vote_for/<poll>", rank=1)]
 fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
-    let mut map = HashMap::new();
     // Need to extract all available polls
-    let polls = match poll::poll::get_poll_desc_list() {
+    let mut ppoll = match poll::poll::get_poll_desc(&poll) {
         Ok(v) => v,
         Err(_) => { return Err(Flash::error(Redirect::to("/error/404"), "Poll not found")); },
     };
-    map.insert("polls", polls);
-    Ok(Template::render("vote_for", &map))
+    if !ppoll.allowed_participant.contains(&voter.name) {
+        return Err(Flash::error(Redirect::to("/not_allowed/poll_list/".to_owned() + &poll), "Not allowed for you to vote"));
+    } else {
+        ppoll.user = voter.name.clone();
+    }
+    
+    Ok(Template::render("vote_for", &ppoll))
 }
+#[post("/vote_for/<poll>", rank=1)]
+fn post_vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
+    // Need to extract all available polls
+    let mut ppoll = match poll::poll::get_poll_desc(&poll) {
+        Ok(v) => v,
+        Err(_) => { return Err(Flash::error(Redirect::to("/error/404"), "Poll not found")); },
+    };
+    if !ppoll.allowed_participant.contains(&voter.name) {
+        return Err(Flash::error(Redirect::to("/not_allowed/poll_list/".to_owned() + &poll), "Not allowed for you to vote"));
+    } else {
+        ppoll.user = voter.name.clone();
+    }
+    
+    Ok(Template::render("vote_for", &ppoll))
+}
+
 #[get("/vote_for/<_poll>", rank=2)]
 fn vote_for_not_logged(_poll: String) -> Flash<Redirect> {
     Flash::error(Redirect::to("/login"), "Invalid credentials")
+}
+#[get("/not_allowed/<dest>/<from>")]
+fn not_allowed(dest: String, from: String) -> Template {
+    let mut map = HashMap::new();
+    map.insert("dest", dest);
+    map.insert("from", from);
+    return Template::render("not_allowed", &map);
 }
 
 
@@ -239,7 +260,7 @@ fn main() {
      .mount("/static", routes![static_files])
      // Ajax below
      // Login or logout
-     .mount("/", routes![login, post_login, logout])
+     .mount("/", routes![login, post_login, logout, not_allowed])
      // Asynchronous application
      .mount("/", routes![poll_list, vote_for])
      // Not logged in async routes

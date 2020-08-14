@@ -29,10 +29,10 @@ pub mod poll {
     // This is the parsed choice from a file
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct ParsedChoice {
-        name: String,
-        desc: String,
-        vote: Vec<usize>,
-        voter: Vec<String>,
+        pub name: String,
+        pub desc: String,
+        pub vote: Vec<usize>,
+        pub voter: Vec<String>,
     }
     impl ParsedChoice {
         fn new(choice: Choice, path: &Path) -> Result<ParsedChoice, NoFileOrYAMLParsingError> {
@@ -72,13 +72,15 @@ pub mod poll {
     // This is for the parsed poll from a file
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct ParsedPoll {
-        name: String,
-        desc: String,
-        filepath: String,
-        allowed_participant: Vec<String>,
-        due_date: String,
-        due_near: bool,
-        choices: Vec<ParsedChoice>,
+        pub name: String,
+        pub desc: String,
+        pub filepath: String,
+        pub filename: String,
+        pub allowed_participant: Vec<String>,
+        pub due_date: String,
+        pub due_near: bool,
+        pub choices: Vec<ParsedChoice>,
+        pub user: String,
     }
 
     impl ParsedPoll {
@@ -87,10 +89,12 @@ pub mod poll {
                 name: poll.name.clone(), 
                 desc: poll.desc.clone(), 
                 filepath: poll.filepath.clone(), 
+                filename: Path::new(&poll.filepath).file_stem().unwrap().to_str().unwrap().to_string(), 
                 allowed_participant: poll.allowed_participant.clone(), 
                 due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
                 due_near: false,
                 choices: vec![],
+                user: "".to_string(),
             }
         }
     }
@@ -191,23 +195,23 @@ pub mod poll {
         return Ok(poll);
     }
 
-    pub fn find_poll_desc(name: String) -> Result<Poll, NoFileOrYAMLParsingError> {
+    pub fn find_poll_desc(name: &str) -> Result<Poll, NoFileOrYAMLParsingError> {
         // Get all poll and find the one with the good file
         let polls = get_poll_list()?;
         for entry in polls {
             match Path::new(&entry.filepath).file_stem() {
                 Some(n) => {
-                    if name.as_str() == n {
+                    if name == n {
                         return Ok(entry);
                     }
                 },
                 None => {},
             }
         }
-        return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::NotFound, name + " not found")));
+        return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", name))));
     }
 
-    pub fn get_poll_desc(name: String) -> Result<ParsedPoll, NoFileOrYAMLParsingError> {
+    pub fn get_poll_desc(name: &str) -> Result<ParsedPoll, NoFileOrYAMLParsingError> {
         let poll = find_poll_desc(name)?;
         // Copy all fields here
         let mut output = ParsedPoll::new(&poll);

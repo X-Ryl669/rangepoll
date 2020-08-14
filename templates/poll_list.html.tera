@@ -1,7 +1,7 @@
 <h3>Please select the poll to vote for</h3>
 <div id="polls">
 {% for poll in polls %}
-  <div class="pollList">
+  <div class="pollList downHeader">
     <h1>{{poll.name}}</h1>
     <div>{{poll.desc | safe}}</div>
     <p class="loadVote" data-href="/vote_for/{{poll.filepath}}">Select this poll to vote</p>

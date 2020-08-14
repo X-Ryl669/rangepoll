@@ -71,26 +71,42 @@ function delegateEvent(element, event, descendentSelector, callback) {
 
 function showLogOut() {
     var user = getCookie("user");
-    if (user.length) $('a.user').removeClass('h').text(`Hi, ${user}: Log out`);
+    if (user.length) $('a.user').removeClass('h').text(`Hi, ${user} ✘`);
 }
 
-function updateDialog(d)
-{
+function updateDialog(d) {
     showLogOut();
     $('div.dialog').html(d);
+
+    var voteList = $('.voteList');
+    voteList.toggleClass('notActive', true);
+    voteList.eq(0).toggleClass('notActive', false);
+
 }
 
-function uponError(e)
-{
+function uponError(e) {
     console.log(e);
 }
 
 ajax('poll_list', updateDialog, uponError, {});
-window.onload = function() 
-{
+window.onload = function() {
     showLogOut();
-    delegateEvent($('div.dialog').a[0], 'click', '.loadVote', function(e)
-    {
+    delegateEvent($('div.dialog').a[0], 'click', '.loadVote', function(e) {
         ajax($(e).attr('data-href'), updateDialog, uponError, {});
+    });
+    delegateEvent($('div.dialog').a[0], 'click', '.voteList', function(e) {
+        $('.voteList').toggleClass('notActive', true);
+        $(e).toggleClass('notActive', false);
+        $('.downHeader2 button').toggleClass('flash', false);
+    });
+    delegateEvent($('div.dialog').a[0], 'change', '.rating input', function(e) {
+        var vote = $(e).parent().parent();
+        var voteList = $('.voteList');
+        voteList.toggleClass('notActive', true);
+        var pos = $('.voteList').a.indexOf(vote.a[0]);
+        voteList.eq(pos + 1).toggleClass('notActive', false);
+        if (voteList.a.length == pos + 1) {
+            $('.downHeader2 button').toggleClass('flash').a[0].scrollIntoView();
+        }
     });
 }

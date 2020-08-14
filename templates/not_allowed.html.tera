@@ -1,0 +1,2 @@
+<h3>You are not allowed to vote for {{ from }}</h3>
+<p data-href="{{ dest }}" class="loadVote">Click here to return to main page</p>
