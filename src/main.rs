@@ -4,16 +4,16 @@
 #[macro_use] extern crate serde_derive;
 
 
-use std::path::{Path, PathBuf};
+use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
 use std::env;
 use rocket::response::NamedFile;
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
-use rocket::http::{Cookies, Cookie};
-use rocket::response::{Flash, Redirect};
-use rocket::request::LenientForm;
-use rocket::config::{Config, Environment};
+use rocket::http::{ Cookies, Cookie };
+use rocket::response::{ Flash, Redirect };
+use rocket::request::{ Form, LenientForm };
+use rocket::config::{ Config, Environment };
 
 // Let authentication be checked with Request Guard
 use rocket::request::{self, Request, FromRequest};
@@ -41,6 +41,34 @@ impl<'a, 'r> FromRequest<'a, 'r> for Voter {
             Some(cookie) => request::Outcome::Success(Voter{ name: cookie.value().to_string()}),
             None => request::Outcome::Forward(())
         }
+    }
+}
+
+
+// Extract the "unknown" field name as vote only if they are integers
+impl<'f> request::FromForm<'f> for poll::poll::VotesForVoter {
+    type Error = ();
+
+    fn from_form(form_items: &mut request::FormItems<'f>, _: bool) -> Result<Self, ()> {
+        let mut votes = poll::poll::VotesForVoter {
+            name: String::new(),
+            votes: HashMap::new(),
+        };
+
+        for (key, value) in form_items.map(|i| i.key_value_decoded()) {
+            if &*key == "name" {
+                votes.name = value;
+            }
+            else {
+                match value.parse() {
+                    Ok(n) => votes.votes.insert(key, n),
+                    // Ignore invalid votes anyway
+                    Err(_) => None,
+                };
+            }
+        }
+
+        Ok(votes)
     }
 }
 
@@ -147,20 +175,21 @@ fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     
     Ok(Template::render("vote_for", &ppoll))
 }
-#[post("/vote_for/<poll>", rank=1)]
-fn post_vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
-    // Need to extract all available polls
-    let mut ppoll = match poll::poll::get_poll_desc(&poll) {
+#[post("/vote_for/<poll>", rank=1, data="<form>")]
+fn post_vote_for(poll: String, voter: Voter, form: Form<poll::poll::VotesForVoter>) -> Result<Template, Flash<Redirect>> {
+    // Don't trust the form submitter and only use the authentication token we have generated here for the voter's name.
+    let vote = poll::poll::VotesForVoter { name: voter.name.clone(), votes: form.votes.clone() };
+    let mut ppoll = match poll::poll::vote_for_poll(&poll, &vote) {
         Ok(v) => v,
-        Err(_) => { return Err(Flash::error(Redirect::to("/error/404"), "Poll not found")); },
+        Err(e) => { return Err(Flash::error(Redirect::to("/error/404"), format!("{:?}", e))); },
     };
-    if !ppoll.allowed_participant.contains(&voter.name) {
+/*    if !ppoll.allowed_participant.contains(&voter.name) {
         return Err(Flash::error(Redirect::to("/not_allowed/poll_list/".to_owned() + &poll), "Not allowed for you to vote"));
     } else {
-        ppoll.user = voter.name.clone();
     }
-    
-    Ok(Template::render("vote_for", &ppoll))
+*/    
+    ppoll.user = voter.name.clone();
+    Ok(Template::render("vote_result", &ppoll))
 }
 
 #[get("/vote_for/<_poll>", rank=2)]
@@ -262,7 +291,7 @@ fn main() {
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed])
      // Asynchronous application
-     .mount("/", routes![poll_list, vote_for])
+     .mount("/", routes![poll_list, vote_for, post_vote_for])
      // Not logged in async routes
      .mount("/", routes![poll_list_not_logged, vote_for_not_logged])
 

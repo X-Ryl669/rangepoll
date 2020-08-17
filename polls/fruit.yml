@@ -13,14 +13,19 @@ choices:
     vote:
       - 3
       - 4
+      - 4
     voter:
       - John
       - Bob
+      - Cyril
   - name: apple
     description: An apple a day...
     vote:
       - 5
       - 2
+      - 2
     voter:
       - John
       - Bob
+      - Cyril
+voting_algorithm: bordat

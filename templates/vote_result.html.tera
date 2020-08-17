@@ -1,0 +1,23 @@
+<div class="downHeader2">
+    <h1>Vote results for: {{name}}</h1>
+    <div>{{desc | safe}}</div>
+    <div class="participant"><title>Participants</title>
+    <ul>
+{% for voter in voters %}
+       <li class="{% if voter == user %}current{% endif %}">{{ voter }}</li>
+{% endfor %}
+    </ul>
+    </div>
+    <div class="participant"><title>Due</title>
+    <due class="{% if due_near %}passed{% endif %}">{{due_date}}</due>
+    </div>
+    <hr>
+    <div id="winner">The winner is: <span>{{ votes[0] }}</span> with a score of <span>{{ score[0] | round(precision=1) }}</span>
+    </div>
+    <ul id="votes">
+{% for vote in votes %}
+      <li><span>{{ vote }}</span> <span>{{ score[loop.index0] | round(precision=1) }} </span></li>
+{% endfor %}
+    </ul>
+</div>
+</form>

@@ -26,7 +26,7 @@ function formData(f) {
   return Array.from(f.elements).filter(function(i) { return i.name && (i.type != "radio" || i.checked == true) })
               .map(function(i) {
                     return encodeURIComponent(i.name) + '=' + encodeURIComponent(i.type == "checkbox" ? (i.checked ? 1 : 0) :
-                    i.type == "password" ? forge_sha256(i.value + attr(i, "salt")) : i.value);
+                    i.value);
                   }).join('&');
 }
 
@@ -91,15 +91,16 @@ function uponError(e) {
 ajax('poll_list', updateDialog, uponError, {});
 window.onload = function() {
     showLogOut();
-    delegateEvent($('div.dialog').a[0], 'click', '.loadVote', function(e) {
+    var dialog = $('div.dialog').a[0];
+    delegateEvent(dialog, 'click', '.loadVote', function(e) {
         ajax($(e).attr('data-href'), updateDialog, uponError, {});
     });
-    delegateEvent($('div.dialog').a[0], 'click', '.voteList', function(e) {
+    delegateEvent(dialog, 'click', '.voteList', function(e) {
         $('.voteList').toggleClass('notActive', true);
         $(e).toggleClass('notActive', false);
         $('.downHeader2 button').toggleClass('flash', false);
     });
-    delegateEvent($('div.dialog').a[0], 'change', '.rating input', function(e) {
+    delegateEvent(dialog, 'change', '.rating input', function(e) {
         var vote = $(e).parent().parent();
         var voteList = $('.voteList');
         voteList.toggleClass('notActive', true);
@@ -108,5 +109,9 @@ window.onload = function() {
         if (voteList.a.length == pos + 1) {
             $('.downHeader2 button').toggleClass('flash').a[0].scrollIntoView();
         }
+    });
+    delegateEvent(dialog, 'submit', 'form', function(e, ev) {
+        ajax(e.action, updateDialog, uponError, { method: "POST", formData: formData(e) });
+        return cancel(ev);
     });
 }

@@ -1,5 +1,5 @@
 <div class="downHeader2">
-    <h1>Vote for {{name}}</h1>
+    <h1>Vote for: {{name}}</h1>
     <div>{{desc | safe}}</div>
     <div class="participant"><title>Participants</title>
     <ul>
@@ -21,7 +21,7 @@
         {% set choice_name = choice.name | urlencode %}
         {% for a in [1,2,3,4,5,] %}
           {% set in_id = choice_name ~ '_' ~ a %}
-          <input id="{{in_id}}" type="radio" name="{{choice_name}}" value="{{ in_id}}" /><label for={{in_id}}></label>
+          <input id="{{in_id}}" type="radio" name="{{choice_name}}" value="{{ (6 - a) }}" /><label for={{in_id}}></label>
         {% endfor %}
         </div>
         <div class="descVote">{{ choice.desc | safe }}</div>

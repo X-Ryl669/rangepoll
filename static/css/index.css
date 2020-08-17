@@ -436,3 +436,11 @@ button.flash {
         box-shadow: 0 0 8px #800;
     }
 }
+#winner span {
+  font-weight: bold;
+  text-transform: capitalize;
+}
+#winner {
+  font-size: 2em;
+  margin: 1em;
+}

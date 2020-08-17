@@ -10,6 +10,7 @@ pub mod poll {
     use std::path::Path;
     use std::error;
     use std::fmt;
+    use std::collections::HashMap;
 
     pub const DUE_FORMAT: &'static str = "%Y-%m-%d";
 
@@ -45,6 +46,72 @@ pub mod poll {
         }
     }
 
+    
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    pub enum VotingAlgorithm {
+        // This is similar to max vote, that is the choice with the maximum total number of points wins 
+        #[serde(rename = "bordat")]
+        Bordat,
+        // This is similar to mean consensus vote, that is each choice is compared to each other choice individually and the last winner wins the vote           
+        #[serde(rename = "condorcet")]
+        Condorcet,
+        // This is similar to only select the best choice vote, that is only the preferred choice is kept for each voter regardless of the other choice, and the choice with the most voters wins      
+        #[serde(rename = "first-choice")]
+        FirstChoice,
+        // This is similar to the French voting system, that is the choice counted per voters and vote, and only the 2 best choice are kept, then the other choice value are dispatched to compute the statistics and select the highest score    
+        #[serde(rename = "french-system")]
+        FrenchSystem,
+        // In this mode, the choice with the lowest acceptance is eliminated and the other vote with a lower value are transfered to the other choice, repeat until only one remains
+        #[serde(rename = "successive-elimination")]
+        SuccessiveElimination,        
+    }
+
+    impl Default for VotingAlgorithm {
+        fn default() -> Self { VotingAlgorithm::Bordat }
+    }
+
+    #[derive(Debug)]
+    pub struct VotesForVoter {
+        pub name: String,
+        pub votes: HashMap<String, u32>,
+    }
+
+/*
+    impl VotingAlgorithm {
+        pub fn from_str(s: &str) -> Option<VotingAlgorithm> {
+            match s.to_ascii_lowercase().as_str() {
+                "bordat" => Some(VotingAlgorithm::Bordat),
+                "condorcet" => Some(VotingAlgorithm::Condorcet),
+                "first_choice" => Some(VotingAlgorithm::FirstChoice),
+                "french_system" => Some(VotingAlgorithm::FrenchSystem),
+                "successive_elimination" => Some(VotingAlgorithm::SuccessiveElimination),
+                _ => None,
+            }
+        }
+
+        pub fn as_str(&self) -> &'static str {
+            match *self {
+                VotingAlgorithm::Bordat => "bordat",
+                VotingAlgorithm::Condorcet => "condorcet",
+                VotingAlgorithm::FirstChoice => "first_choice",
+                VotingAlgorithm::FrenchSystem => "french_system",
+                VotingAlgorithm::SuccessiveElimination => "successive_elimination",
+            }
+        }
+    }
+    */
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+    pub struct PollOptions {
+        #[serde(rename = "allow-missing-vote", default)]
+        pub allow_missing_vote:       bool,
+        #[serde(rename = "allow-late-vote", default)]
+        pub allow_late_vote:          bool,
+        #[serde(rename = "show-only-complete-result", default)]
+        pub show_only_complete_result: bool,
+
+    }
+
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct Poll {
@@ -67,6 +134,13 @@ pub mod poll {
         #[serde(with = "date_serde")]
         due_date: DateTime<Utc>,
         choices: Vec<Choice>,
+
+        // Any of Bordat / Condorcet / etc. (see VotingAlgorithm)
+        #[serde(default)]
+        voting_algorithm: VotingAlgorithm,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        options: Option<PollOptions>,
     }
 
     // This is for the parsed poll from a file
@@ -107,6 +181,63 @@ pub mod poll {
         filepath: String,
         due_date: String,
         due_near: bool,
+    }
+
+    // This is the poll result
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    pub struct PollResult {
+        pub name: String,
+        pub desc: String,
+        pub user: String, // Only used for user feedback
+        pub due_date: String,
+        pub voters: Vec<String>,
+        pub votes: Vec<String>,
+        pub score: Vec<f32>,
+    }
+    impl PollResult {
+        fn new(poll: &Poll) -> PollResult {
+            let def_option = PollOptions { ..Default::default() };
+            let opt = poll.options.as_ref().unwrap_or(&def_option);
+
+            let mut votes = Vec::new();
+            for choice in &poll.choices {
+                // For now, it's Bordat or nothing
+                // TODO: Make it more robust
+                let mut sum: usize = 0; 
+                for vote in &choice.vote { 
+                    sum = sum + vote 
+                }
+                let res: f32 = (sum as f32) / (choice.vote.len() as f32);
+                // Make sure we have collected all votes yet if required (else abort)
+                if opt.show_only_complete_result && choice.voter.len() != poll.allowed_participant.len() {
+                    return PollResult { 
+                        name: poll.name.clone(), 
+                        desc: "<h1>Poll not completed yet</h1>".to_string(),
+                        voters: poll.allowed_participant.clone(),
+                        due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
+                        user: "".to_string(),
+                        votes: Vec::new(),
+                        score: Vec::new(),
+                    };
+                }
+
+                votes.push((choice.name.clone(), res));
+//                votes.push(choice.name.clone());
+//                results.push(res);
+            }
+            // Reverse sorting
+            votes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            PollResult { 
+                name: poll.name.clone(),
+                desc: poll.desc.clone(),
+                voters: poll.allowed_participant.clone(),
+                due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
+                user: "".to_string(),
+                votes: votes.iter().map(|a| a.0.clone()).collect(),
+                score: votes.iter().map(|a| a.1).collect(),
+            }  
+        }
     }
 
     // The "no file or yaml error type"
@@ -222,6 +353,7 @@ pub mod poll {
         }
         return Ok(output);
     }
+
     pub fn get_poll_list() -> Result<Vec<Poll>, serde_yaml::Error> {
         let polls = glob(concat!(env!("CARGO_MANIFEST_DIR"), "/polls/*.yml")).expect("Failed to read glob pattern");
         let mut output = Vec::new();
@@ -254,10 +386,43 @@ pub mod poll {
         return Ok(output);
     }
 
+    pub fn compute_poll_result(poll: &Poll) -> Result<PollResult, NoFileOrYAMLParsingError> {
+        return Ok(PollResult::new(&poll));
+    }
+
+    pub fn vote_for_poll(name: &str,  voters: &VotesForVoter) -> Result<PollResult, NoFileOrYAMLParsingError> {
+        let mut poll = find_poll_desc(name)?;
+        if !poll.allowed_participant.contains(&voters.name) {
+            return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, format!("{} not allowed", voters.name))));
+        }
+        for choice in &mut poll.choices {
+            let index = choice.voter.iter().position(|r| r == &voters.name);
+            // Check if we have a vote for this choice
+            let vote = voters.votes.get(&choice.name);
+            if vote == None {
+                // No, we don't, let's skip this solution
+                continue; 
+            }
+            match index {
+                Some(n) => choice.vote[n] = *vote.unwrap() as usize,
+                None => { 
+                    choice.voter.push(voters.name.clone());
+                    choice.vote.push(*vote.unwrap() as usize);
+                }
+            }
+        }
+        // Then serialize the poll and save to file
+        let serial = serde_yaml::to_string(&poll)?;
+        fs::write(poll.filepath.clone(), serial)?;
+
+        // Add or update the vote for the given voter
+        return compute_poll_result(&poll);
+    }
+
     pub fn gen_template(dest: &str) {
         let mut choices = Vec::new();
-        choices.push(Choice { name:"pear".to_string(), desc: "".to_string(), description: Some("A *pear* is good".to_string()), desc_markdown: None, vote: vec![3, 4], voter: vec!["John".to_string(), "Bob".to_string()] });
-        choices.push(Choice { name:"apple".to_string(), desc: "".to_string(), description: Some("An *apple* a day...".to_string()), desc_markdown: None, vote: vec![5, 2], voter: vec!["John".to_string(), "Bob".to_string()] });
+        choices.push(Choice { name:"pear".to_string(), desc: "".to_string(), description: Some("A pear is good".to_string()), desc_markdown: None, vote: vec![3, 4], voter: vec!["John".to_string(), "Bob".to_string()] });
+        choices.push(Choice { name:"apple".to_string(), desc: "".to_string(), description: Some("An apple a day...".to_string()), desc_markdown: None, vote: vec![5, 2], voter: vec!["John".to_string(), "Bob".to_string()] });
 
         let poll = Poll {   name:"Best fruit".to_string(),
                             filepath: "".to_string(),
@@ -267,6 +432,8 @@ pub mod poll {
                             allowed_participant: vec!["John".to_string(), "Bob".to_string(), "Isaac".to_string()],
                             due_date: Utc::now(),
                             choices: choices,
+                            voting_algorithm: VotingAlgorithm::Bordat,
+                            options: None,
                         };
         let serial = serde_yaml::to_string(&poll);
         match serial {
