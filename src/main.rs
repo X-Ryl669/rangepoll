@@ -218,7 +218,7 @@ fn vote_results(dest: String, voter: Voter) -> Result<Template, Flash<Redirect>>
     pollr.user = voter.name.clone();
     Ok(Template::render("vote_result", &pollr))
 }
-#[get("/vote_results/<dest>", rank=2)]
+#[get("/vote_results/<_dest>", rank=2)]
 fn vote_results_not_logged(_dest: String) -> Flash<Redirect> {
     Flash::error(Redirect::to("/login"), "Invalid credentials")
 }
