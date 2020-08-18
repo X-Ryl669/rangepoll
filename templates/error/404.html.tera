@@ -3,9 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <title>404</title>
+    <link href="public/css/index.css" rel="stylesheet"/>
   </head>
   <body>
     <h1>404: It's like 911 for robots...</h1>
     The page at {{ path }} does not exist!
+    <a href="/">Let's try again this time</a>
   </body>
 </html>

@@ -390,6 +390,15 @@ pub mod poll {
         return Ok(PollResult::new(&poll));
     }
 
+    pub fn get_poll_result(name: &str, voter_name: String) -> Result<PollResult, NoFileOrYAMLParsingError> {
+        let mut poll = find_poll_desc(name)?;
+        if !poll.allowed_participant.contains(&voter_name) {
+            return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, format!("{} not allowed", voter_name))));
+        }
+
+        return compute_poll_result(&poll);
+    }
+
     pub fn vote_for_poll(name: &str,  voters: &VotesForVoter) -> Result<PollResult, NoFileOrYAMLParsingError> {
         let mut poll = find_poll_desc(name)?;
         if !poll.allowed_participant.contains(&voters.name) {

@@ -1,0 +1,2 @@
+<h1>{{ msg }}</h1>
+<p>The server is not properly set up. Please make sure at least some voters are declared to allow authentication mecanism to work</p>

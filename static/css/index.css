@@ -312,7 +312,9 @@ ul.form button:hover {
     font-size: 2.6em;
 }
 
-
+[data-href] {
+  cursor: pointer;
+}
 p.loadVote {
     background: #65B7FD;
     border-radius: 10px;
@@ -443,4 +445,51 @@ button.flash {
 #winner {
   font-size: 2em;
   margin: 1em;
+}
+#voteResults li {
+  height: 3em;
+  position: relative;
+}
+#voteResults li span {
+  z-index: 2;
+  position: relative;
+  text-transform: capitalize;
+  margin-left: 1em;
+  font-weight: 400;
+  line-height: 1.7em;
+  font-size: 1.2em;
+}
+progress {
+  position: absolute;
+  height: 2em;
+  border-radius: 10px;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #f1f1f1;
+  box-shadow: 0 2px 5px 0px rgba(0,0,0,0.3);
+  border: none;
+}
+progress[value]::-webkit-progress-bar {
+  background: #f1f1f1;
+  box-shadow:  0 2px 5px 0px rgba(0,0,0,0.3);
+}
+progress[value]::-webkit-progress-value, progress[value]::-moz-progress-bar { 
+  background: linear-gradient(to right, #EDF0F2 0%, #ADCFEC 100%);
+  border-radius: 10px; 
+  box-shadow: 0 0 5px #444;
+}
+value::after {
+  content: " / 5";
+  font-size: 0.6em;
+  font-weight: lighter;
+  margin-left: 0.1em;
+}
+value {
+  position: absolute;
+  right: 10px;
+  font-size: 2em;
+  top: -0.4em;
+  text-align: left;
+  width: max-content;
 }

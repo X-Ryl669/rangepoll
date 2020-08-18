@@ -1,0 +1,2 @@
+<h1>{{ msg }}</h1>
+<p data-href="/login" class="loadVote">Try again</p>

@@ -14,9 +14,9 @@
     <hr>
     <div id="winner">The winner is: <span>{{ votes[0] }}</span> with a score of <span>{{ score[0] | round(precision=1) }}</span>
     </div>
-    <ul id="votes">
+    <ul id="voteResults">
 {% for vote in votes %}
-      <li><span>{{ vote }}</span> <span>{{ score[loop.index0] | round(precision=1) }} </span></li>
+      <li><progress max="50" value="{{score[loop.index0]*10 | round}}">{{ score[loop.index0] | round(precision=1) }}</progress><span>{{ vote }}</span><value>{{ score[loop.index0] | round(precision=1) }}</value></li>
 {% endfor %}
     </ul>
 </div>

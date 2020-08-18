@@ -40,8 +40,8 @@ function ajax(url, callback, error, options) {
       if (xhr.readyState == 4) {
           if (xhr.status == 200)
               callback(xhr.responseText);
-          else if (xhr.status == 401 && !options.skipAuth)
-              shouldLogin(xhr.getResponseHeader('Location'));
+/*          else if (xhr.status == 401 && !options.skipAuth)
+              shouldLogin(xhr.getResponseHeader('Location'));*/
           else error(xhr.responseText, options.errorArg);
           if (options.bannerId) ajaxEnding(options.bannerId);
       }
@@ -86,13 +86,15 @@ function updateDialog(d) {
 
 function uponError(e) {
     console.log(e);
+    $('div.dialog').html(e);
 }
 
 ajax('poll_list', updateDialog, uponError, {});
+
 window.onload = function() {
     showLogOut();
     var dialog = $('div.dialog').a[0];
-    delegateEvent(dialog, 'click', '.loadVote', function(e) {
+    delegateEvent(dialog, 'click', '[data-href]', function(e) {
         ajax($(e).attr('data-href'), updateDialog, uponError, {});
     });
     delegateEvent(dialog, 'click', '.voteList', function(e) {

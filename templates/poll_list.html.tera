@@ -6,6 +6,7 @@
     <div>{{poll.desc | safe}}</div>
     <p class="loadVote" data-href="/vote_for/{{poll.filepath}}">Select this poll to vote</p>
     <due class="{% if poll.due_near %}passed{% endif %}">Due<br/>{{poll.due_date}}</due>
+    <p class="voteResult" data-href="/vote_results/{{poll.filepath}}">Consult poll results</p>
   </div>
 {% endfor %}
 </div>

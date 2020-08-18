@@ -10,10 +10,11 @@ use std::env;
 use rocket::response::NamedFile;
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
-use rocket::http::{ Cookies, Cookie };
+use rocket::http::{ Cookies, Cookie, Status };
 use rocket::response::{ Flash, Redirect };
 use rocket::request::{ Form, LenientForm };
 use rocket::config::{ Config, Environment };
+use rocket::response::status::Custom;
 
 // Let authentication be checked with Request Guard
 use rocket::request::{self, Request, FromRequest};
@@ -85,19 +86,27 @@ fn login() -> Template {
 }
 
 #[post("/login", data = "<user>")]
-fn post_login(mut cookies: Cookies, user: LenientForm<User>) -> Flash<Redirect> {
+fn post_login(mut cookies: Cookies, user: LenientForm<User>) -> Result< Redirect, Custom<Template> > {
     let voters = match voters::voters::get_voter_list() {
         Ok(v) => v,
-        Err(_) => return Flash::error(Redirect::to("/"), "Invalid credentials"),
+        Err(_) => Vec::new(),
     };
+
+    if voters.len() == 0 {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "No voter declared yet");
+        return Err(Custom(Status::MisdirectedRequest, Template::render("error/421", ctx)));
+    }
     for voter in voters {
         if user.name == voter.name && user.password == voter.password {
             cookies.add_private(Cookie::new("auth", user.name.clone()));
             cookies.add(Cookie::new("user", user.name.clone()));
-            return Flash::success(Redirect::to("/"), "Successfully logged in.");
+            return Ok(Redirect::to("/main"));
         } 
     }
-    Flash::error(Redirect::to("/"), "Invalid credentials")
+    let mut ctx = HashMap::new();
+    ctx.insert("msg", "Invalid credentials");
+    return Err(Custom(Status::Unauthorized, Template::render("error/401", ctx)));
 }
 
 /// Remove the `auth` cookie.
@@ -140,20 +149,14 @@ fn not_found(req: &Request) -> Template {
 // Asynchronous javascript methods here
 #[get("/poll_list", rank=1)]
 fn poll_list(_voter: Voter) -> Result<Template, Flash<Redirect>> {
-/*    let auth_token = cookies.get_private("auth");
-    if auth_token.is_none() {
-        Err(Flash::error(Redirect::to("/login"), "Invalid credentials"))
-    } else {
-        */
-        let mut map = HashMap::new();
-        // Need to extract all available polls
-        let polls = match poll::poll::get_poll_desc_list() {
-            Ok(v) => v,
-            Err(_) => { map.insert("polls", vec![]); return Ok(Template::render("poll_list", &map)); },
-        };
-        map.insert("polls", polls);
-        Ok(Template::render("poll_list", &map))
-//    }
+    let mut map = HashMap::new();
+    // Need to extract all available polls
+    let polls = match poll::poll::get_poll_desc_list() {
+        Ok(v) => v,
+        Err(_) => { map.insert("polls", vec![]); return Ok(Template::render("poll_list", &map)); },
+    };
+    map.insert("polls", polls);
+    Ok(Template::render("poll_list", &map))
 }
 #[get("/poll_list", rank=2)]
 fn poll_list_not_logged() -> Flash<Redirect> {
@@ -202,6 +205,33 @@ fn not_allowed(dest: String, from: String) -> Template {
     map.insert("dest", dest);
     map.insert("from", from);
     return Template::render("not_allowed", &map);
+}
+
+#[get("/vote_results/<dest>", rank=1)]
+fn vote_results(dest: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
+    // Need to extract vote results for the given name
+    let mut pollr = match poll::poll::get_poll_result(dest.as_str(), voter.name.clone()) {
+        Ok(v) => v,
+        Err(e) => { return Err(Flash::error(Redirect::to("/error/404"), format!("{:?}", e))); },
+    };
+    
+    pollr.user = voter.name.clone();
+    Ok(Template::render("vote_result", &pollr))
+}
+#[get("/vote_results/<dest>", rank=2)]
+fn vote_results_not_logged(_dest: String) -> Flash<Redirect> {
+    Flash::error(Redirect::to("/login"), "Invalid credentials")
+}
+
+#[get("/main", rank=1)]
+fn main_page(voter: Voter) -> Template {
+    let mut ctx = HashMap::new();
+    ctx.insert("name", voter.name.clone());
+    Template::render("menu", &ctx)
+}
+#[get("/main", rank=2)]
+fn main_page_not_logged() -> Flash<Redirect> {
+    Flash::error(Redirect::to("/login"), "Invalid credentials")
 }
 
 
@@ -291,9 +321,9 @@ fn main() {
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed])
      // Asynchronous application
-     .mount("/", routes![poll_list, vote_for, post_vote_for])
+     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, main_page])
      // Not logged in async routes
-     .mount("/", routes![poll_list_not_logged, vote_for_not_logged])
+     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, main_page_not_logged])
 
      // Static below
      .mount("/public", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")))

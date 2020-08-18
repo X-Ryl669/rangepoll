@@ -13,7 +13,7 @@ choices:
     vote:
       - 3
       - 4
-      - 4
+      - 5
     voter:
       - John
       - Bob
@@ -23,7 +23,7 @@ choices:
     vote:
       - 5
       - 2
-      - 2
+      - 4
     voter:
       - John
       - Bob
