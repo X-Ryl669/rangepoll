@@ -4,9 +4,16 @@
   <div class="pollList downHeader">
     <h1>{{poll.name}}</h1>
     <div>{{poll.desc | safe}}</div>
-    <p class="loadVote" data-href="/vote_for/{{poll.filepath}}">Select this poll to vote</p>
-    <due class="{% if poll.due_near %}passed{% endif %}">Due<br/>{{poll.due_date}}</due>
-    <p class="voteResult" data-href="/vote_results/{{poll.filepath}}">Consult poll results</p>
+{% if not poll.complete %} 
+  {% if not poll.deadline_passed or poll.option.allow-late-vote %}
+    <a class="loadVote" href="/vote_for/{{poll.filepath}}">Select this poll to vote</a>
+  {% endif %}
+{% endif %}
+{% set comp = poll.option.show-only-complete-result and poll.option.complete %}
+{% if poll.deadline_passed or comp %}
+    <a class="voteResult" href="/vote_results/{{poll.filepath}}">Consult poll results</a>
+{% endif %}
+    <deadline class="{% if poll.deadline_near %}passed{% endif %}">Deadline<br/>{{poll.deadline_date}}</deadline>
   </div>
 {% endfor %}
 </div>

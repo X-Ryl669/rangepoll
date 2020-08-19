@@ -12,7 +12,7 @@ pub mod poll {
     use std::fmt;
     use std::collections::HashMap;
 
-    pub const DUE_FORMAT: &'static str = "%Y-%m-%d";
+    pub const DEADLINE_FORMAT: &'static str = "%Y-%m-%d";
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct Choice {
@@ -47,9 +47,12 @@ pub mod poll {
     }
 
     
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize, Copy, Clone)]
     pub enum VotingAlgorithm {
-        // This is similar to max vote, that is the choice with the maximum total number of points wins 
+        // This is the max of sum vote, that is the choice with the maximum total number of points wins 
+        #[serde(rename = "max")]
+        Max,
+        // This is similar to max vote, that is the choice with the maximum total number of points wins but choice can't have the same number of point (obviously limited to 5 choices maximum)
         #[serde(rename = "bordat")]
         Bordat,
         // This is similar to mean consensus vote, that is each choice is compared to each other choice individually and the last winner wins the vote           
@@ -67,7 +70,7 @@ pub mod poll {
     }
 
     impl Default for VotingAlgorithm {
-        fn default() -> Self { VotingAlgorithm::Bordat }
+        fn default() -> Self { VotingAlgorithm::Max }
     }
 
     #[derive(Debug)]
@@ -103,12 +106,15 @@ pub mod poll {
 
     #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
     pub struct PollOptions {
-        #[serde(rename = "allow-missing-vote", default)]
-        pub allow_missing_vote:       bool,
+        // Allow to skip a choice (in a vote)
+        #[serde(rename = "allow-missing-choice", default)]
+        pub allow_missing_choice:       bool,
+        // Allow to vote while the due date is passed
         #[serde(rename = "allow-late-vote", default)]
-        pub allow_late_vote:          bool,
+        pub allow_late_vote:            bool,
+        // Only show the result if every voter has voted
         #[serde(rename = "show-only-complete-result", default)]
-        pub show_only_complete_result: bool,
+        pub show_only_complete_result:  bool,
 
     }
 
@@ -132,7 +138,7 @@ pub mod poll {
         allowed_participant: Vec<String>,
         
         #[serde(with = "date_serde")]
-        due_date: DateTime<Utc>,
+        deadline_date: DateTime<Utc>,
         choices: Vec<Choice>,
 
         // Any of Bordat / Condorcet / etc. (see VotingAlgorithm)
@@ -151,8 +157,10 @@ pub mod poll {
         pub filepath: String,
         pub filename: String,
         pub allowed_participant: Vec<String>,
-        pub due_date: String,
-        pub due_near: bool,
+        pub deadline_date: String,
+        pub deadline_near: bool,
+        pub algorithm: VotingAlgorithm,
+        pub missing_choice: bool,
         pub choices: Vec<ParsedChoice>,
         pub user: String,
     }
@@ -165,8 +173,10 @@ pub mod poll {
                 filepath: poll.filepath.clone(), 
                 filename: Path::new(&poll.filepath).file_stem().unwrap().to_str().unwrap().to_string(), 
                 allowed_participant: poll.allowed_participant.clone(), 
-                due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
-                due_near: false,
+                deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
+                deadline_near: false,
+                algorithm: poll.voting_algorithm,
+                missing_choice: match &poll.options { Some(v) => v.allow_missing_choice, None => false },
                 choices: vec![],
                 user: "".to_string(),
             }
@@ -179,8 +189,11 @@ pub mod poll {
         name: String,
         desc: String,
         filepath: String,
-        due_date: String,
-        due_near: bool,
+        deadline_date: String,
+        deadline_near: bool,
+        deadline_passed: bool, // If the vote is done
+        complete: bool,
+        options: PollOptions,
     }
 
     // This is the poll result
@@ -189,7 +202,7 @@ pub mod poll {
         pub name: String,
         pub desc: String,
         pub user: String, // Only used for user feedback
-        pub due_date: String,
+        pub deadline_date: String,
         pub voters: Vec<String>,
         pub votes: Vec<String>,
         pub score: Vec<f32>,
@@ -200,30 +213,157 @@ pub mod poll {
             let opt = poll.options.as_ref().unwrap_or(&def_option);
 
             let mut votes = Vec::new();
-            for choice in &poll.choices {
-                // For now, it's Bordat or nothing
-                // TODO: Make it more robust
-                let mut sum: usize = 0; 
-                for vote in &choice.vote { 
-                    sum = sum + vote 
+            // First pass, make sure we have completed the vote
+            if opt.show_only_complete_result {
+                for choice in &poll.choices {
+                    if choice.voter.len() != poll.allowed_participant.len() {
+                        return PollResult { 
+                            name: poll.name.clone(), 
+                            desc: "<h1>Poll not completed yet</h1>".to_string(),
+                            voters: poll.allowed_participant.clone(),
+                            deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
+                            user: "".to_string(),
+                            votes: Vec::new(),
+                            score: Vec::new(),
+                        };
+                    }
                 }
-                let res: f32 = (sum as f32) / (choice.vote.len() as f32);
-                // Make sure we have collected all votes yet if required (else abort)
-                if opt.show_only_complete_result && choice.voter.len() != poll.allowed_participant.len() {
-                    return PollResult { 
-                        name: poll.name.clone(), 
-                        desc: "<h1>Poll not completed yet</h1>".to_string(),
-                        voters: poll.allowed_participant.clone(),
-                        due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
-                        user: "".to_string(),
-                        votes: Vec::new(),
-                        score: Vec::new(),
-                    };
-                }
+            }
 
-                votes.push((choice.name.clone(), res));
-//                votes.push(choice.name.clone());
-//                results.push(res);
+            match poll.voting_algorithm {
+                VotingAlgorithm::Max => {
+                    for choice in &poll.choices {
+                        let mut sum: usize = 0; 
+                        for vote in &choice.vote { 
+                            sum = sum + vote 
+                        }
+                        let res: f32 = (sum as f32) / (choice.vote.len() as f32);
+                        
+                        votes.push((choice.name.clone(), res));
+                    }
+                },
+                VotingAlgorithm::Bordat => {
+                    for choice in &poll.choices {
+                        let mut sum: usize = 0; 
+                        let mut unique_vote = HashMap::new();
+                        for vote in &choice.vote { 
+                            sum = sum + vote;
+                            if unique_vote.contains_key(vote) {
+                                return PollResult { 
+                                    name: poll.name.clone(), 
+                                    desc: format!("<h1>Invalid vote result with {:?} algorithm, same vote {} for choice {}</h1>", poll.voting_algorithm, vote, choice.name),
+                                    voters: poll.allowed_participant.clone(),
+                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
+                                    user: "".to_string(),
+                                    votes: Vec::new(),
+                                    score: Vec::new(),
+                                };
+                            }
+                            unique_vote.insert(vote, choice.name.clone());
+                        }
+                        let res: f32 = (sum as f32) / (choice.vote.len() as f32);
+                        
+                        votes.push((choice.name.clone(), res));
+                    }
+                },
+                // This is similar to mean consensus vote, that is each choice is compared to each other choice individually and the last winner wins the vote           
+                VotingAlgorithm::Condorcet => {
+                    // We need to compute, for each choice A, if it wins the next choice B (winning is defined as having more voter in favor of this choice A than B)
+                    // If it wins, B is dropped and A is compared to next choice C and so on, else A is dropped and B is compared to C and so on.
+                    let mut cur_win = 0;
+                    for i in 0..poll.choices.len()-1 {
+                        let A = &poll.choices[cur_win];
+                        let B = &poll.choices[i+1];
+
+                        // Compare between A and B
+                        let mut wins_for_A = 0; 
+                        let mut wins_for_B = 0; 
+                        
+                        if A.vote.len() != B.vote.len() {
+                            return PollResult { 
+                                    name: poll.name.clone(), 
+                                    desc: format!("<h1>Invalid vote result with {:?} algorithm, missing vote for choice {}</h1>", poll.voting_algorithm, A.name),
+                                    voters: poll.allowed_participant.clone(),
+                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
+                                    user: "".to_string(),
+                                    votes: Vec::new(),
+                                    score: Vec::new(),
+                                };
+                        }
+
+                        for j in 0..A.vote.len() {
+                            let v_A = A.vote[j];
+                            let v_B = B.vote[j];
+                            if v_A > v_B { 
+                                wins_for_A += 1 
+                            } else { 
+                                wins_for_B += 1 
+                            };
+                        }
+
+                        // Not sure what to do if there is an ex-aequo here,  
+                        if wins_for_B > wins_for_A {
+                            cur_win = i+1;
+                        }
+                    }
+                    // The cur_win index is the winner, so let's save it now (sorry, we are not ranking the other here, since they are eliminated)
+                    votes.push((poll.choices[cur_win].name.clone(), 5.0 as f32));
+                },
+                // This is similar to only select the best choice vote, that is only the preferred choice is kept for each voter regardless of the other choice, and the choice with the most voters wins      
+                VotingAlgorithm::FirstChoice => {
+                    let mut map : HashMap<String, (String, usize)> = HashMap::new();
+
+                    for choice in &poll.choices {
+                        // We have to create a map of voter to their best choice, but we have a structure of choice to voter
+                        let mut i = 0;
+                        // Find max first for each voter
+                        for voter in &choice.voter {
+                            match map.get(voter) {
+                                Some(v) => { if v.1 < choice.vote[i] { map.insert(voter.to_string(), (choice.name.clone(), choice.vote[i])); } },
+                                None    => { map.insert(voter.to_string(), (choice.name.clone(), choice.vote[i])); },
+                            }
+                            i += 1;
+                        }
+                    }
+                    // Then compute the winner
+                    let mut accumulator: HashMap<String, usize> = HashMap::new();
+                    // Accumulate the choices counter
+                    for voter in map.keys() {
+                        let (choice,_) = map.get(voter).unwrap();
+                        let mut c = match accumulator.get(choice) { Some(v) => *v, None => 0 };
+                        c += 1; 
+                        accumulator.insert(choice.to_string(), c);
+                    }
+                    // Then collect them in a vector
+                    for choice in accumulator.keys() {
+                        votes.push((choice.clone(), *accumulator.get(choice).unwrap() as f32));
+                    }
+                },
+                // This is similar to the French voting system, that is the choice counted per voters and vote, and only the 2 best choice are kept, then the other choice value are dispatched to compute the statistics and select the highest score    
+                VotingAlgorithm::FrenchSystem => {
+                    return PollResult { 
+                                    name: poll.name.clone(), 
+                                    desc: format!("<h1>This {:?} algorithm isn't implemented yet</h1>", poll.voting_algorithm),
+                                    voters: poll.allowed_participant.clone(),
+                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
+                                    user: "".to_string(),
+                                    votes: Vec::new(),
+                                    score: Vec::new(),
+                                };
+                },
+                // In this mode, the choice with the lowest acceptance is eliminated and the other vote with a lower value are transfered to the other choice, repeat until only one remains
+                VotingAlgorithm::SuccessiveElimination => {
+                    return PollResult { 
+                                    name: poll.name.clone(), 
+                                    desc: format!("<h1>This {:?} algorithm isn't implemented yet</h1>", poll.voting_algorithm),
+                                    voters: poll.allowed_participant.clone(),
+                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
+                                    user: "".to_string(),
+                                    votes: Vec::new(),
+                                    score: Vec::new(),
+                                };
+
+                }     
             }
             // Reverse sorting
             votes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -232,7 +372,7 @@ pub mod poll {
                 name: poll.name.clone(),
                 desc: poll.desc.clone(),
                 voters: poll.allowed_participant.clone(),
-                due_date: format!("{}", poll.due_date.format(DUE_FORMAT)),
+                deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
                 user: "".to_string(),
                 votes: votes.iter().map(|a| a.0.clone()).collect(),
                 score: votes.iter().map(|a| a.1).collect(),
@@ -380,8 +520,21 @@ pub mod poll {
                 Some(path) => path.to_str().unwrap().to_string(),
                 None => "".to_string(),
             };
-            let close_date = poll.due_date.signed_duration_since(Utc::now()) < chrono::Duration::days(1);
-            output.push(PollDesc { name: poll.name.clone(), desc: poll.desc.clone(), filepath: filepath, due_date: format!("{}", poll.due_date.format(DUE_FORMAT)), due_near: close_date });
+            let close_date = poll.deadline_date.signed_duration_since(Utc::now()) < chrono::Duration::days(1);
+            let done = poll.deadline_date.signed_duration_since(Utc::now()) < chrono::Duration::seconds(1);
+            let opt = poll.options.unwrap_or_default();
+            let complete = {
+                let voters = poll.allowed_participant.len();
+                let mut ret = true; 
+                for choice in poll.choices {
+                    if choice.vote.len() < voters {
+                        ret = false;
+                        break;
+                    }
+                }
+                ret
+            };
+            output.push(PollDesc { name: poll.name.clone(), desc: poll.desc.clone(), filepath: filepath, deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)), deadline_near: close_date, deadline_passed: done, options: opt, complete: complete });
         }
         return Ok(output);
     }
@@ -404,13 +557,26 @@ pub mod poll {
         if !poll.allowed_participant.contains(&voters.name) {
             return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, format!("{} not allowed", voters.name))));
         }
+        // Can we still accept this vote ?
+        let late_vote = match &poll.options { Some(o) => o.allow_late_vote, None => false };
+        if !late_vote && poll.deadline_date.signed_duration_since(Utc::now()) < chrono::Duration::seconds(1) {
+            return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::TimedOut, format!("{} deadline passed", name))));
+        }
+        let missing_choice = match &poll.options { Some(o) => o.allow_missing_choice, None => false };
+
+
         for choice in &mut poll.choices {
             let index = choice.voter.iter().position(|r| r == &voters.name);
             // Check if we have a vote for this choice
             let vote = voters.votes.get(&choice.name);
             if vote == None {
-                // No, we don't, let's skip this solution
-                continue; 
+                if missing_choice {
+                    // No, we don't, let's skip this solution
+                    continue; 
+                }
+                else {
+                    return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{} invalid vote", name))));
+                }
             }
             match index {
                 Some(n) => choice.vote[n] = *vote.unwrap() as usize,
@@ -439,7 +605,7 @@ pub mod poll {
                             description: Some("Choose your best fruit".to_string()),
                             desc_markdown: None, 
                             allowed_participant: vec!["John".to_string(), "Bob".to_string(), "Isaac".to_string()],
-                            due_date: Utc::now(),
+                            deadline_date: Utc::now(),
                             choices: choices,
                             voting_algorithm: VotingAlgorithm::Bordat,
                             options: None,

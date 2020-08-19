@@ -101,7 +101,7 @@ fn post_login(mut cookies: Cookies, user: LenientForm<User>) -> Result< Redirect
         if user.name == voter.name && user.password == voter.password {
             cookies.add_private(Cookie::new("auth", user.name.clone()));
             cookies.add(Cookie::new("user", user.name.clone()));
-            return Ok(Redirect::to("/main"));
+            return Ok(Redirect::to("/poll_list")); 
         } 
     }
     let mut ctx = HashMap::new();
@@ -168,7 +168,11 @@ fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     // Need to extract all available polls
     let mut ppoll = match poll::poll::get_poll_desc(&poll) {
         Ok(v) => v,
-        Err(_) => { return Err(Flash::error(Redirect::to("/error/404"), "Poll not found")); },
+        Err(_) => { 
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "No poll found on server");
+            return Ok(Template::render("error/412", &ctx)); 
+        },
     };
     if !ppoll.allowed_participant.contains(&voter.name) {
         return Err(Flash::error(Redirect::to("/not_allowed/poll_list/".to_owned() + &poll), "Not allowed for you to vote"));
@@ -184,7 +188,7 @@ fn post_vote_for(poll: String, voter: Voter, form: Form<poll::poll::VotesForVote
     let vote = poll::poll::VotesForVoter { name: voter.name.clone(), votes: form.votes.clone() };
     let mut ppoll = match poll::poll::vote_for_poll(&poll, &vote) {
         Ok(v) => v,
-        Err(e) => { return Err(Flash::error(Redirect::to("/error/404"), format!("{:?}", e))); },
+        Err(e) => { return Err(Flash::error(Redirect::to(format!("/not_allowed/{}/{}", "/poll_list", poll)), format!("{:?}", e))); },
     };
 /*    if !ppoll.allowed_participant.contains(&voter.name) {
         return Err(Flash::error(Redirect::to("/not_allowed/poll_list/".to_owned() + &poll), "Not allowed for you to vote"));
@@ -212,7 +216,7 @@ fn vote_results(dest: String, voter: Voter) -> Result<Template, Flash<Redirect>>
     // Need to extract vote results for the given name
     let mut pollr = match poll::poll::get_poll_result(dest.as_str(), voter.name.clone()) {
         Ok(v) => v,
-        Err(e) => { return Err(Flash::error(Redirect::to("/error/404"), format!("{:?}", e))); },
+        Err(e) => { return Err(Flash::error(Redirect::to(format!("/not_allowed/{}/{}", "/poll_list", dest)), format!("{:?}", e))); },
     };
     
     pollr.user = voter.name.clone();
@@ -223,14 +227,14 @@ fn vote_results_not_logged(_dest: String) -> Flash<Redirect> {
     Flash::error(Redirect::to("/login"), "Invalid credentials")
 }
 
-#[get("/main", rank=1)]
-fn main_page(voter: Voter) -> Template {
+#[get("/menu", rank=1)]
+fn menu(voter: Voter) -> Template {
     let mut ctx = HashMap::new();
     ctx.insert("name", voter.name.clone());
     Template::render("menu", &ctx)
 }
-#[get("/main", rank=2)]
-fn main_page_not_logged() -> Flash<Redirect> {
+#[get("/menu", rank=2)]
+fn menu_not_logged() -> Flash<Redirect> {
     Flash::error(Redirect::to("/login"), "Invalid credentials")
 }
 
@@ -321,9 +325,9 @@ fn main() {
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed])
      // Asynchronous application
-     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, main_page])
+     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu])
      // Not logged in async routes
-     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, main_page_not_logged])
+     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged])
 
      // Static below
      .mount("/public", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")))

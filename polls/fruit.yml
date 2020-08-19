@@ -6,14 +6,14 @@ allowed_participant:
   - Bob
   - Isaac
   - Cyril
-due_date: "2020-08-16 14:05:30"
+deadline_date: "2020-09-16 14:05:30"
 choices:
   - name: pear
     desc_markdown: pear.md
     vote:
       - 3
       - 4
-      - 5
+      - 3
     voter:
       - John
       - Bob
@@ -23,7 +23,7 @@ choices:
     vote:
       - 5
       - 2
-      - 1
+      - 2
     voter:
       - John
       - Bob

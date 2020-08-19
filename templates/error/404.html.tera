@@ -8,6 +8,6 @@
   <body>
     <h1>404: It's like 911 for robots...</h1>
     The page at {{ path }} does not exist!
-    <a href="/">Let's try again this time</a>
+    <a class="noJS" href="/">Let's try again this time</a>
   </body>
 </html>

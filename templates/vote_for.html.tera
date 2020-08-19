@@ -1,4 +1,5 @@
 <div class="downHeader2">
+    <a class="back" href="/poll_list">Back</a>
     <h1>Vote for: {{name}}</h1>
     <div>{{desc | safe}}</div>
     <div class="participant"><title>Participants</title>
@@ -8,12 +9,12 @@
 {% endfor %}
     </ul>
     </div>
-    <div class="participant"><title>Due</title>
-    <due class="{% if due_near %}passed{% endif %}">{{due_date}}</due>
+    <div class="participant"><title>Deadline</title>
+    <deadline class="{% if deadline_near %}passed{% endif %}">{{deadline_date}}</deadline>
     </div>
     <hr>
     <form action="vote_for/{{ filename }}" method="POST">
-    <div id="votes">
+    <div id="votes" data-algorithm="{{ algorithm }}" data-nochoice="{{ missing_choice }}">
 {% for choice in choices %}
       <div class="voteList">
         <h1>{{ choice.name | title }}</h1>

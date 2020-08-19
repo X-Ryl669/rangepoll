@@ -136,15 +136,10 @@ logo:after {
   
   a,
   a:visited {
-    color: #3498db;
+    text-decoration: none;
+    display: inline-block;
   }
-  
-  a:hover,
-  a:focus,
-  a:active {
-    color: #2980b9;
-  }
-  
+    
   pre {
     background-color: #fafafa;
     padding: 1rem;
@@ -267,6 +262,10 @@ ul.form button:hover {
     box-shadow: 0 0 5px #888;
     color: #008;
 }
+.downHeader2 button:disabled {
+  background: #EEE;
+  color: #BBB;
+}
 
 #polls, #votes {
     max-width: 100vw;
@@ -291,17 +290,18 @@ ul.form button:hover {
     position: relative;
     overflow: hidden;
 }
-.pollList due {
+.pollList deadline {
     position: absolute;
     transform: rotateZ(-45deg);
     background: #AAE1AA;
-    left: -125px;
-    top: 0;
+    left: -120px;
+    top: 10px;
     font-size: 80%;
     width: 300px;
     box-shadow: 0 2px 4px #AAA;
+    line-height: 1.4em;
 }
-.pollList due.passed {
+.pollList deadline.passed {
     background: #E1AAAA;
 }
 
@@ -341,29 +341,29 @@ ul.form button:hover {
 [data-href] {
   cursor: pointer;
 }
-p.loadVote {
+.loadVote {
     background: #65B7FD;
     border-radius: 10px;
     color: #FFF;
     width: max-content;
     padding: 0 2em;
-    margin: 0 auto;
+    margin: 1em auto 0 auto;;
     cursor: pointer;
     transition: all ease 0.3s;    
 }
-p.loadVote:hover::before {
+.loadVote:hover::before {
     padding-right: 0.3em;
     padding-left: 0.7em;
     color: #EEE44A;
     text-shadow: 0 0 5px #FFF;
 }
-p.loadVote::before {
+.loadVote::before {
     content: "\25B6";
     padding-right: 1em;
     font-size: 0.8rem;
     transition: all ease 0.3s;
 }
-p.loadVote:hover {
+.loadVote:hover {
     background: #3D86C6;
 }
 
@@ -519,11 +519,12 @@ value {
   text-align: left;
   width: max-content;
 }
-p.voteResult { 
+.voteResult { 
   margin-top: 1em;
   transition: all ease 0.6s;
+  color: #444;
 }
-p.voteResult::before {
+.voteResult::before {
   content: '';
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M62 32S52 52 32 52 2 32 2 32s10-20 30-20 30 20 30 20' fill='%23231f20'/%3E%3Cpath d='M57 32s-8 17-25 17S7 32 7 32s8-17 25-17 25 17 25 17z' fill='%23fff'/%3E%3Cpath d='M45 32c0 8-6 14-13 14-8 0-14-6-14-14 0-7 6-13 14-13 7 0 13 6 13 13' fill='%2342ade2'/%3E%3Cpath d='M39 32c0 4-3 8-7 8s-8-4-8-8 4-7 8-7 7 3 7 7' fill='%23231f20'/%3E%3C/svg%3E") no-repeat 0 0.2em;
   height: 1.1em;
@@ -534,5 +535,48 @@ p.voteResult::before {
   transition: all ease 0.6s;
   opacity: 0.5;
 }
-p.voteResult:hover { color: #000; }
-p.voteResult:hover::before { filter: grayscale(0); opacity: 1;}
+.voteResult:hover { color: #000; }
+.voteResult:hover::before { filter: grayscale(0); opacity: 1;}
+.back::before {
+  content: "❮❮❮";
+  color: black;
+  font-weight: bold;
+  font-family: monospace;
+  letter-spacing: 0em;
+  transition: all cubic-bezier(0.64, 0.57, 0.67, 1.53) 0.25s;
+}
+.back:hover::before {
+  letter-spacing: -.1em;
+}
+.back {
+  color: transparent;
+  font-size: 2em;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  line-height: 1em;
+}
+a.noJS {
+  display: block;
+  font-weight: 500;
+}
+#errMsg {
+  background: #FCC;
+  position: fixed;
+  top: 50%;
+  height: 2em;
+  left: 25%;
+  width: 50%;
+  padding: 1em;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #800;
+  font-weight: 400;
+  display: none;
+}
+#errMsg.error {
+  display: block;
+}
+#errMsg span {
+  text-transform: capitalize;
+  font-weight: bold;
+}

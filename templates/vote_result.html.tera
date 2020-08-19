@@ -1,4 +1,5 @@
 <div class="downHeader2">
+    <a class="back" href="/poll_list">Back</a>
     <h1>Vote results for: {{name}}</h1>
     <div>{{desc | safe}}</div>
     <div class="participant"><title>Participants</title>
@@ -9,7 +10,7 @@
     </ul>
     </div>
     <div class="participant"><title>Due</title>
-    <due class="{% if due_near %}passed{% endif %}">{{due_date}}</due>
+    <deadline class="{% if deadline_near %}passed{% endif %}">{{deadline_date}}</deadline>
     </div>
     <hr>
     <div id="winner">The winner is: <span>{{ votes[0] }}</span> with a score of <span>{{ score[0] | round(precision=1) }}</span>
