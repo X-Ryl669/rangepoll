@@ -1,4 +1,4 @@
-<h3>Please select the poll to vote for</h3>
+<h3>Please select the poll to vote for:</h3>
 <div id="polls">
 {% for poll in polls %}
   <div class="pollList downHeader">
