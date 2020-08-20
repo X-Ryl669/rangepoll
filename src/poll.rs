@@ -10,7 +10,9 @@ pub mod poll {
     use std::path::Path;
     use std::error;
     use std::fmt;
-    use std::collections::HashMap;
+    use std::collections::{ HashMap, HashSet };
+    use array2d::Array2D;
+    use std::iter::FromIterator;
 
     pub const DEADLINE_FORMAT: &'static str = "%Y-%m-%d";
 
@@ -206,163 +208,141 @@ pub mod poll {
         pub voters: Vec<String>,
         pub votes: Vec<String>,
         pub score: Vec<f32>,
+        pub score_max: f32,
     }
     impl PollResult {
+        fn error(name: &str, err: &str) -> PollResult {
+            return PollResult { 
+                    name: name.to_string(), 
+                    desc: err.to_string(),
+                    voters: Vec::new(),
+                    deadline_date: "".to_string(),
+                    user: "".to_string(),
+                    votes: Vec::new(),
+                    score: Vec::new(),
+                    score_max: 0f32,
+                };
+        }
+
         fn new(poll: &Poll) -> PollResult {
             let def_option = PollOptions { ..Default::default() };
             let opt = poll.options.as_ref().unwrap_or(&def_option);
 
             let mut votes = Vec::new();
+
+            // We are going to build a 2D matrix here of (row: voter, col:choice, cell: vote) since different algorithm need 
+            // different access (some requires row access, some prefer column access)
+            let mut choices = HashSet::new();
+            let mut voters  = HashSet::new();
+            for choice in &poll.choices {
+                // Store all possible choices
+                choices.insert(choice.name.clone());
+                // Store all actual voters
+                for voter in &choice.voter {
+                    voters.insert(voter.clone());
+                }
+            }
+            // Shadow the parameters here so we have an ordered vector here
+            let choices = Vec::from_iter(choices);
+            let voters = Vec::from_iter(voters);
+            // Let's build a matrix here
+            let mut vote_matrix = Array2D::filled_with(0, voters.len(), choices.len());
+            // And fill it now
+            for choice in &poll.choices {
+                let col = choices.iter().position(|x| x == &choice.name).unwrap();
+                for i in 0..choice.voter.len() {
+                    let row = voters.iter().position(|x| x == &choice.voter[i]).unwrap();
+                    vote_matrix[(row, col)] = choice.vote[i];
+                }
+            }
+
+            let mut score_max = 5f32;
+
             // First pass, make sure we have completed the vote
-            if opt.show_only_complete_result {
-                for choice in &poll.choices {
-                    if choice.voter.len() != poll.allowed_participant.len() {
-                        return PollResult { 
-                            name: poll.name.clone(), 
-                            desc: "<h1>Poll not completed yet</h1>".to_string(),
-                            voters: poll.allowed_participant.clone(),
-                            deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
-                            user: "".to_string(),
-                            votes: Vec::new(),
-                            score: Vec::new(),
-                        };
+            if opt.show_only_complete_result && vote_matrix.as_row_major().iter().position(|&x| x == 0).is_some() {
+                return PollResult::error(&poll.name, "<h1>Poll not completed yet</h1>");
+            }
+
+            if poll.voting_algorithm != VotingAlgorithm::Max {
+                for (row, name) in vote_matrix.as_rows().iter().zip(voters.iter()) { 
+                    let l: HashSet<&usize> = HashSet::from_iter(row.iter());
+                    if l.len() != row.len() {
+                        return PollResult::error(&poll.name, &format!("<h1>Invalid vote result with {:?} algorithm, same vote by {}</h1>", poll.voting_algorithm, name));
                     }
                 }
             }
 
             match poll.voting_algorithm {
+                // This is the max of sum vote, that is the choice with the maximum total number of points wins 
                 VotingAlgorithm::Max => {
-                    for choice in &poll.choices {
-                        let mut sum: usize = 0; 
-                        for vote in &choice.vote { 
-                            sum = sum + vote 
-                        }
-                        let res: f32 = (sum as f32) / (choice.vote.len() as f32);
-                        
-                        votes.push((choice.name.clone(), res));
+                    // Compute sum of columns here
+                    for (col, name) in vote_matrix.as_columns().iter().zip(choices.iter()) {
+                        votes.push((name.clone(), col.iter().sum::<usize>() as f32 / voters.len() as f32));
                     }
                 },
+                // Bordat is similar to max vote, but all votes are first normalized (worst choice get 1 point, less worst get 2 points and so on) before being summed
                 VotingAlgorithm::Bordat => {
-                    for choice in &poll.choices {
-                        let mut sum: usize = 0; 
-                        let mut unique_vote = HashMap::new();
-                        for vote in &choice.vote { 
-                            sum = sum + vote;
-                            if unique_vote.contains_key(vote) {
-                                return PollResult { 
-                                    name: poll.name.clone(), 
-                                    desc: format!("<h1>Invalid vote result with {:?} algorithm, same vote {} for choice {}</h1>", poll.voting_algorithm, vote, choice.name),
-                                    voters: poll.allowed_participant.clone(),
-                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
-                                    user: "".to_string(),
-                                    votes: Vec::new(),
-                                    score: Vec::new(),
-                                };
-                            }
-                            unique_vote.insert(vote, choice.name.clone());
+                    // Normalize votes first
+                    let rows = vote_matrix.as_rows();
+                    for (pos, row) in rows.iter().enumerate() {
+                        let mut vote_for_voter = Vec::from_iter(row.iter().zip(choices.iter()));
+                        vote_for_voter.sort_by(|a, b| a.0.cmp(b.0));
+                        let mut acc = 1;
+                        for (_, choice) in vote_for_voter {
+                            vote_matrix[(pos, choices.iter().position(|x| x == choice).unwrap())] = acc;
+                            acc += 1;
                         }
-                        let res: f32 = (sum as f32) / (choice.vote.len() as f32);
-                        
-                        votes.push((choice.name.clone(), res));
+                    }
+
+                    // Compute sum of columns here
+                    for (col, name) in vote_matrix.as_columns().iter().zip(choices.iter()) {
+                        votes.push((name.clone(), col.iter().sum::<usize>() as f32 / voters.len() as f32));
                     }
                 },
                 // This is similar to mean consensus vote, that is each choice is compared to each other choice individually and the last winner wins the vote           
                 VotingAlgorithm::Condorcet => {
                     // We need to compute, for each choice A, if it wins the next choice B (winning is defined as having more voter in favor of this choice A than B)
                     // If it wins, B is dropped and A is compared to next choice C and so on, else A is dropped and B is compared to C and so on.
-                    let mut cur_win = 0;
-                    for i in 0..poll.choices.len()-1 {
-                        let A = &poll.choices[cur_win];
-                        let B = &poll.choices[i+1];
+                    let cols = vote_matrix.as_columns();
 
-                        // Compare between A and B
-                        let mut wins_for_A = 0; 
-                        let mut wins_for_B = 0; 
-                        
-                        if A.vote.len() != B.vote.len() {
-                            return PollResult { 
-                                    name: poll.name.clone(), 
-                                    desc: format!("<h1>Invalid vote result with {:?} algorithm, missing vote for choice {}</h1>", poll.voting_algorithm, A.name),
-                                    voters: poll.allowed_participant.clone(),
-                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
-                                    user: "".to_string(),
-                                    votes: Vec::new(),
-                                    score: Vec::new(),
-                                };
+                    // Dumb implementation in O(N^2) here, sorry, but it's easier and the number of choice will be limited anyway
+                    let min_score = voters.len() / 2; 
+                    for (col, name) in cols.iter().zip(choices.iter()) {
+                        let mut score_duel = 0;
+                        for other_col in &cols {
+                            let score = col.iter().zip(other_col.iter()).map(|(a, b)| if a > b { 1 } else { 0 }).sum::<usize>();
+                            if score > min_score { 
+                                score_duel += 1; 
+                            }
                         }
-
-                        for j in 0..A.vote.len() {
-                            let v_A = A.vote[j];
-                            let v_B = B.vote[j];
-                            if v_A > v_B { 
-                                wins_for_A += 1 
-                            } else { 
-                                wins_for_B += 1 
-                            };
-                        }
-
-                        // Not sure what to do if there is an ex-aequo here,  
-                        if wins_for_B > wins_for_A {
-                            cur_win = i+1;
-                        }
+                        votes.push((name.clone(), score_duel as f32));
                     }
-                    // The cur_win index is the winner, so let's save it now (sorry, we are not ranking the other here, since they are eliminated)
-                    votes.push((poll.choices[cur_win].name.clone(), 5.0 as f32));
+                    
+                    score_max = choices.len() as f32;
                 },
                 // This is similar to only select the best choice vote, that is only the preferred choice is kept for each voter regardless of the other choice, and the choice with the most voters wins      
                 VotingAlgorithm::FirstChoice => {
-                    let mut map : HashMap<String, (String, usize)> = HashMap::new();
+                    let mut vote_per_voter = vec![0;choices.len()];
+                    let rows = vote_matrix.as_rows();
 
-                    for choice in &poll.choices {
-                        // We have to create a map of voter to their best choice, but we have a structure of choice to voter
-                        let mut i = 0;
-                        // Find max first for each voter
-                        for voter in &choice.voter {
-                            match map.get(voter) {
-                                Some(v) => { if v.1 < choice.vote[i] { map.insert(voter.to_string(), (choice.name.clone(), choice.vote[i])); } },
-                                None    => { map.insert(voter.to_string(), (choice.name.clone(), choice.vote[i])); },
-                            }
-                            i += 1;
-                        }
+                    for row in rows.iter() {
+                        let max_value = row.iter().max().unwrap();
+                        let col_pos = row.iter().position(|x| x == max_value).unwrap();
+                        vote_per_voter[col_pos] += 1;
                     }
-                    // Then compute the winner
-                    let mut accumulator: HashMap<String, usize> = HashMap::new();
-                    // Accumulate the choices counter
-                    for voter in map.keys() {
-                        let (choice,_) = map.get(voter).unwrap();
-                        let mut c = match accumulator.get(choice) { Some(v) => *v, None => 0 };
-                        c += 1; 
-                        accumulator.insert(choice.to_string(), c);
+                    for (vote, name) in vote_per_voter.iter().zip(choices.iter()) {
+                        votes.push((name.clone(), *vote as f32));                    
                     }
-                    // Then collect them in a vector
-                    for choice in accumulator.keys() {
-                        votes.push((choice.clone(), *accumulator.get(choice).unwrap() as f32));
-                    }
+
+                    score_max = choices.len() as f32;
                 },
                 // This is similar to the French voting system, that is the choice counted per voters and vote, and only the 2 best choice are kept, then the other choice value are dispatched to compute the statistics and select the highest score    
                 VotingAlgorithm::FrenchSystem => {
-                    return PollResult { 
-                                    name: poll.name.clone(), 
-                                    desc: format!("<h1>This {:?} algorithm isn't implemented yet</h1>", poll.voting_algorithm),
-                                    voters: poll.allowed_participant.clone(),
-                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
-                                    user: "".to_string(),
-                                    votes: Vec::new(),
-                                    score: Vec::new(),
-                                };
+                    return PollResult::error(&poll.name, &format!("<h1>This {:?} algorithm isn't implemented yet</h1>", poll.voting_algorithm));
                 },
                 // In this mode, the choice with the lowest acceptance is eliminated and the other vote with a lower value are transfered to the other choice, repeat until only one remains
                 VotingAlgorithm::SuccessiveElimination => {
-                    return PollResult { 
-                                    name: poll.name.clone(), 
-                                    desc: format!("<h1>This {:?} algorithm isn't implemented yet</h1>", poll.voting_algorithm),
-                                    voters: poll.allowed_participant.clone(),
-                                    deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
-                                    user: "".to_string(),
-                                    votes: Vec::new(),
-                                    score: Vec::new(),
-                                };
-
+                    return PollResult::error(&poll.name, &format!("<h1>This {:?} algorithm isn't implemented yet</h1>", poll.voting_algorithm));
                 }     
             }
             // Reverse sorting
@@ -376,6 +356,7 @@ pub mod poll {
                 user: "".to_string(),
                 votes: votes.iter().map(|a| a.0.clone()).collect(),
                 score: votes.iter().map(|a| a.1).collect(),
+                score_max: score_max,
             }  
         }
     }

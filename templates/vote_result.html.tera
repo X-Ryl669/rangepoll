@@ -13,12 +13,14 @@
     <deadline class="{% if deadline_near %}passed{% endif %}">{{deadline_date}}</deadline>
     </div>
     <hr>
+{% if votes %}
     <div id="winner">The winner is: <span>{{ votes[0] }}</span> with a score of <span>{{ score[0] | round(precision=1) }}</span>
     </div>
     <ul id="voteResults">
 {% for vote in votes %}
-      <li><progress max="50" value="{{score[loop.index0]*10 | round}}">{{ score[loop.index0] | round(precision=1) }}</progress><span>{{ vote }}</span><value>{{ score[loop.index0] | round(precision=1) }}</value></li>
+      <li><progress max="50" value="{{score[loop.index0]*10 | round}}">{{ score[loop.index0] | round(precision=1) }}</progress><span>{{ vote }}</span><value data-max="{{score_max}}">{{ score[loop.index0] | round(precision=1) }}</value></li>
 {% endfor %}
     </ul>
+{% endif %}
 </div>
 </form>

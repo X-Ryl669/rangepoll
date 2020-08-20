@@ -506,7 +506,7 @@ progress[value]::-webkit-progress-value, progress[value]::-moz-progress-bar {
   box-shadow: 0 0 5px #444;
 }
 value::after {
-  content: " / 5";
+  content: " / " attr(data-max);
   font-size: 0.6em;
   font-weight: lighter;
   margin-left: 0.1em;

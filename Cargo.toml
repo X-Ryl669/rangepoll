@@ -16,6 +16,7 @@ serde_yaml = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 glob = "0.3.0"
 comrak = "0.8"
+array2d = "0.2.1"
 
 [dependencies.rocket_contrib]
 version = "0.4.5"
