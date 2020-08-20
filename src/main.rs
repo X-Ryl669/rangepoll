@@ -17,7 +17,7 @@ use rocket::config::{ Config, Environment };
 use rocket::response::status::Custom;
 
 // Let authentication be checked with Request Guard
-use rocket::request::{self, Request, FromRequest};
+use rocket::request::{ self, Request, FromRequest };
 
 mod poll;
 mod voters;
@@ -79,6 +79,26 @@ struct LoginContext {
     dest: &'static str
 }
 
+
+
+#[get("/token/<token>")]
+fn log_with_token(mut cookies: Cookies, token: String) -> Result< Redirect, Custom<Template> > {
+    // Using JWT token here for authentication 
+    let voter = match poll::poll::validate_token(&token) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Error ({}) with token: {}", e, token);
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Invalid credentials");
+            return Err(Custom(Status::Unauthorized, Template::render("error/401", ctx)));
+        }
+    };
+
+    cookies.add_private(Cookie::new("auth", voter.1.clone()));
+    cookies.add(Cookie::build("user", voter.1.clone()).path("/").finish());
+    return Ok(Redirect::to(format!("/?vote={}", voter.0.clone()))); 
+}
+
 #[get("/login")]
 fn login() -> Template { 
     let context = LoginContext { site_name: "range poll", dest: "/login" };
@@ -98,9 +118,9 @@ fn post_login(mut cookies: Cookies, user: LenientForm<User>) -> Result< Redirect
         return Err(Custom(Status::MisdirectedRequest, Template::render("error/421", ctx)));
     }
     for voter in voters {
-        if user.name == voter.name && user.password == voter.password {
-            cookies.add_private(Cookie::new("auth", user.name.clone()));
-            cookies.add(Cookie::new("user", user.name.clone()));
+        if user.name.to_lowercase() == voter.name.to_lowercase() && user.password == voter.password {
+            cookies.add_private(Cookie::new("auth", voter.name.clone()));
+            cookies.add(Cookie::new("user", voter.name.clone()));
             return Ok(Redirect::to("/poll_list")); 
         } 
     }
@@ -148,10 +168,10 @@ fn not_found(req: &Request) -> Template {
 
 // Asynchronous javascript methods here
 #[get("/poll_list", rank=1)]
-fn poll_list(_voter: Voter) -> Result<Template, Flash<Redirect>> {
+fn poll_list(voter: Voter) -> Result<Template, Flash<Redirect>> {
     let mut map = HashMap::new();
     // Need to extract all available polls
-    let polls = match poll::poll::get_poll_desc_list() {
+    let polls = match poll::poll::get_poll_desc_list(&voter.name) {
         Ok(v) => v,
         Err(_) => { map.insert("polls", vec![]); return Ok(Template::render("poll_list", &map)); },
     };
@@ -258,9 +278,11 @@ fn static_files(file: PathBuf) -> Option<NamedFile> {
 fn help(process_name: &String) {
     println!(r#"Usage is: {:?} [command]
 with [command] any of:
+    -a localhost     Host to listen on
     -p 80            Port to listen to
     -g template.yaml Generate a template poll YAML file and save to template.yaml (recommanded: polls/example.yml)
     -v voter.yaml    Generate a template voter YAML file and save to template.yaml (recommanded: voters/users.yml)
+    -t poll          Generate tokens for the given poll's voters so it can be distributed by email for example
 "#, process_name)
 }
 
@@ -268,6 +290,7 @@ fn main() {
     // Start main backend
     // Parse arguments
     let mut port: u16 = 8000;
+    let mut host = "localhost".to_string();
     let args: Vec<String> = env::args().collect();
     match args.len() {
         // no arguments passed
@@ -285,6 +308,9 @@ fn main() {
             let num = &args[2];
             // parse the command
             match &cmd[..] {
+                "-a" => {
+                    host = num.to_string();
+                },
                 "-p" => {
                     match num.parse() { 
                         Ok(n) => { port = n; },
@@ -301,6 +327,20 @@ fn main() {
                     println!("Generated template voter file to {:?}", num);
                     return;
                 }
+                "-t" => {
+                    let tokens = match poll::poll::gen_voters_token(num) {
+                        Ok(v) => v,
+                        Err(e) => { eprintln!("Error: {}", e); return; }
+                    };
+
+                    let max_voter_name = tokens.iter().map(|x| x.voter.len()).max().unwrap();
+
+                    println!("{:width$}    Token", "Voter", width = max_voter_name);
+                    for token in tokens {
+                        println!("{:width$}    http://{}:{}/token/{}", token.voter, host, port, token.token, width = max_voter_name);
+                    }
+                    return;
+                }
                 _ => { help(&args[0]); return; }
             }
         },
@@ -309,7 +349,7 @@ fn main() {
 
 
     let config = Config::build(Environment::Staging)
-                        .address("localhost")
+                        .address(host)
                         .port(port)
                         .finalize().expect("Error building webserver config");
 
@@ -323,7 +363,7 @@ fn main() {
      .mount("/static", routes![static_files])
      // Ajax below
      // Login or logout
-     .mount("/", routes![login, post_login, logout, not_allowed])
+     .mount("/", routes![login, post_login, logout, not_allowed, log_with_token])
      // Asynchronous application
      .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu])
      // Not logged in async routes

@@ -13,6 +13,8 @@ pub mod poll {
     use std::collections::{ HashMap, HashSet };
     use array2d::Array2D;
     use std::iter::FromIterator;
+    use jsonwebtoken::{ encode, Algorithm, Header, EncodingKey, decode, DecodingKey, Validation };
+    use crate::poll::poll::chrono::Timelike;
 
     pub const DEADLINE_FORMAT: &'static str = "%Y-%m-%d";
 
@@ -493,10 +495,13 @@ pub mod poll {
         return Ok(output);
     }
 
-    pub fn get_poll_desc_list() -> Result<Vec<PollDesc>, serde_yaml::Error> {
+    pub fn get_poll_desc_list(voter: &String) -> Result<Vec<PollDesc>, serde_yaml::Error> {
         let polls = get_poll_list()?;
         let mut output = Vec::new();
         for poll in polls {
+            if !poll.allowed_participant.contains(voter) {
+                continue;
+            }
             let filepath = match Path::new(&poll.filepath).file_stem() {
                 Some(path) => path.to_str().unwrap().to_string(),
                 None => "".to_string(),
@@ -596,5 +601,91 @@ pub mod poll {
             Ok(v) => fs::write(dest, v).expect("Failed writing"),
             Err(e) => println!("Failed to generate template {:?} with error: {:?}", dest, e),
         }
+    }
+
+    pub struct Token
+    {
+        pub voter: String,
+        pub token: String,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Claims {
+        sub: String,        // Used as the poll name
+        company: String,    // Used as the voter's name
+        #[serde(with = "jwt_numeric_date")]
+        exp: DateTime<Utc>, // UTC timestamp
+    }
+
+    impl Claims {
+        /// If a token should always be equal to its representation after serializing and deserializing
+        /// again, this function must be used for construction. `DateTime` contains a microsecond field
+        /// but JWT timestamps are defined as UNIX timestamps (seconds). This function normalizes the
+        /// timestamps.
+        pub fn new(sub: String, company: String, exp: DateTime<Utc>) -> Self {
+            // normalize the timestamps by stripping of microseconds
+            let exp = exp.date().and_hms_milli(exp.hour(), exp.minute(), exp.second(), 0);
+            Self { sub, company, exp }
+        }
+    }
+
+    mod jwt_numeric_date {
+        //! Custom serialization of DateTime<Utc> to conform with the JWT spec (RFC 7519 section 2, "Numeric Date")
+        use chrono::{DateTime, TimeZone, Utc};
+        use serde::{self, Deserialize, Deserializer, Serializer};
+
+        /// Serializes a DateTime<Utc> to a Unix timestamp (milliseconds since 1970/1/1T00:00:00T)
+        pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer,
+        {
+            let timestamp = date.timestamp();
+            serializer.serialize_i64(timestamp)
+        }
+
+        /// Attempts to deserialize an i64 and use as a Unix timestamp
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error> where D: Deserializer<'de>,
+        {
+            Utc.timestamp_opt(i64::deserialize(deserializer)?, 0)
+                .single() // If there are multiple or no valid DateTimes from timestamp, return None
+                .ok_or_else(|| serde::de::Error::custom("invalid Unix timestamp value"))
+        }
+    }
+
+    pub fn gen_voters_token(name: &str) -> Result<Vec<Token>, NoFileOrYAMLParsingError> {
+        let poll = find_poll_desc(name)?;
+        let secret = match fs::read_to_string("secret.txt") {
+            Ok(v) => v,
+            Err(e) => { return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("secret.txt not found: {}", e)))); }
+        };
+
+        let enc_key = EncodingKey::from_secret(secret.as_bytes());
+        let mut output = Vec::new();
+        for voter in poll.allowed_participant {
+            let claim = Claims::new(name.to_string(), voter.clone(), poll.deadline_date + chrono::Duration::days(30));
+
+            let token = Token {
+                voter: voter.clone(),
+                token: encode(&Header::default(), &claim, &enc_key).unwrap(),
+            };
+            output.push(token);
+        }
+
+        return Ok(output);
+    }
+
+    pub fn validate_token(token: &String) -> Result<(String, String), NoFileOrYAMLParsingError> {
+        let secret = match fs::read_to_string("secret.txt") {
+            Ok(v) => v,
+            Err(e) => { return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("secret.txt not found: {}", e)))); }
+        };
+        let dec_key = &DecodingKey::from_secret(secret.as_bytes());
+        let token_msg = match decode::<Claims>(token, &dec_key, &Validation::new(Algorithm::HS256)) {
+            Ok(v) => v,
+            Err(_) => { return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{} invalid", token)))); }
+        };
+        let poll = find_poll_desc(&token_msg.claims.sub)?;
+        if !poll.allowed_participant.contains(&token_msg.claims.company) {
+            return Err(NoFileOrYAMLParsingError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Access denied")));
+        }
+        return Ok((token_msg.claims.sub.clone(), token_msg.claims.company.clone()));
     }
 }

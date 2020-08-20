@@ -9,6 +9,12 @@ function getCookie(cookiename) {
   var cookiestring = RegExp(cookiename+"=[^;]+").exec(document.cookie);
   return decodeURIComponent(!!cookiestring ? cookiestring.toString().replace(/^[^=]+./,"") : "");
 }
+function getQueryVar(varName) {
+  var queryStr = unescape(window.location.search) + '&';
+  var regex = new RegExp('.*?[&\\?]' + varName + '=(.*?)&.*');
+  var val = queryStr.replace(regex, "$1");
+  return val == queryStr ? false : val;
+}
 function filter(a,k) { if (k in a) return a[k]; return ''; }
 function sproutRandom(numChar) {
   var result = '', characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', l = numChar == undefined ? 10 : numChar;
@@ -128,7 +134,9 @@ function uponError(e) {
     $('div.dialog').html(e);
 }
 
-ajax('poll_list', updateDialog, uponError, {});
+var target = getQueryVar("vote");
+
+ajax(target === false ? 'poll_list' : `vote_for/${target}`, updateDialog, uponError, {});
 
 window.onload = function() {
     showLogOut();
