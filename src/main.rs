@@ -19,6 +19,8 @@ use rocket::response::status::Custom;
 // Let authentication be checked with Request Guard
 use rocket::request::{ self, Request, FromRequest };
 use clap::{ App, Arg };
+use std::net::IpAddr;
+
 
 mod poll;
 mod voters;
@@ -331,8 +333,10 @@ fn main() {
     }
 
 
+    let host_interface = host.parse::<IpAddr>().unwrap_or("0.0.0.0".parse::<IpAddr>().unwrap());
+
     let config = Config::build(Environment::Staging)
-                        .address(host)
+                        .address(host_interface.to_string())
                         .port(port)
                         .finalize().expect("Error building webserver config");
 
