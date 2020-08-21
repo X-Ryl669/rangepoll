@@ -86,14 +86,13 @@ The poll file format looks like this:
 ```yaml
 ---
 name: Fruit test
-description: This poll is used to test voting algorithms correctly 
-# Or you can use: "desc_markdown: file.md" instead for a cleaner presentation
+description: This poll is used to test voting algorithms correctly # Or you can use: "desc_markdown: file.md" instead for a cleaner presentation
 allowed_participant:
-  - X
+  - X # If you are using voters file, you must have a voter file with this name inside
   - Y
   - Z
 deadline_date: "2020-08-11 14:05:30"
-voting_algorithm: bordat # Any of max, binary, bordat, condorcet, first-choice
+voting_algorithm: bordat # Any of max, binary, bordat, condorcet, first-choice, see voting_algorithm.html for details
 choices:
   - name: pear
     description: A pear is good
@@ -137,13 +136,16 @@ It isn't made for a country or a huge population (voting algorithms run in N^2 t
 It isn't made for anonymous voting and secure counting and hiding of the voter, but instead to provide a tool for running a democratic poll in a company or a gathering of people were the vote results can be public.
 
 ## Roadmap
-I'm following the [Pareto principle](https://en.wikipedia.org/wiki/Pareto_principle) to save time.
+I'm following the [Pareto principle](https://en.wikipedia.org/wiki/Pareto_principle) to save development time.
 
 Currently, the software is usable for end-users (voting is working and is a nice UX).
 
 In the future, I'll probably add an admin page to let users change their password (and some security for them instead of storing them in cleartext), and add/delete other users.
 
 Also, I might add a Poll editor (instead of having to deal with a YAML file) since it's not very *non-tech savvy* friendly.
+
+## Disclaimer
+This is my first Rust software. Please be lenient with the code and feel free to report any mistake I've made in the issue tabs.
 
 
 
