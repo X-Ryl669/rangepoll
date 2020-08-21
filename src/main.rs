@@ -6,9 +6,7 @@ extern crate clap;
 
 use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
-use std::env;
 use rocket::response::NamedFile;
-use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
 use rocket::http::{ Cookies, Cookie, Status };
 use rocket::response::{ Flash, Redirect };
@@ -194,7 +192,7 @@ fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
         Err(_) => { 
             let mut ctx = HashMap::new();
             ctx.insert("msg", "No poll found on server");
-            return Ok(Template::render("error/412", &ctx)); 
+            return Ok(Template::render("error/421", &ctx)); 
         },
     };
     if !ppoll.allowed_participant.contains(&voter.name) {
@@ -273,7 +271,7 @@ fn login(cookies: Cookies) -> &'static str {
 */
 
 // Temporary stuff below
-#[get("/static/<file..>")]
+#[get("/public/<file..>")]
 fn static_files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("static/").join(file)).ok()
 }
@@ -347,7 +345,6 @@ fn main() {
 
     r.attach(Template::fairing())
      .mount("/", routes![index])
-     .mount("/static", routes![static_files])
      // Ajax below
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed, log_with_token])
@@ -357,7 +354,7 @@ fn main() {
      .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged])
 
      // Static below
-     .mount("/public", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")))
+     .mount("/", routes![static_files])
      .register(catchers![not_found])
      .launch();
 }

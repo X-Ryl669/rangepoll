@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="../css/index.css" rel="stylesheet"/>
+    <script src="../js/njs.min.js"></script>    
+</head>
+<body>
+    <logo>Rangepoll</logo>
+<h1>Description of the voting algorithms</h1>
+<h3>Common voting example</h3>
+Here are the collected results for a vote for the best fruits:
+<table class="help">
+<thead>
+    <tr><th>Voter</th><th>Apple</th><th>Cherry</th><th>Pear</th></tr>
+</thead>
+<tbody>
+<tr><td>Alice</td><td>2</td><td>3</td><td>1</td></tr>   
+<tr><td>Bob</td><td>1</td><td>3</td><td>2</td></tr>   
+<tr><td>Cindy</td><td>4</td><td>1</td><td>5</td></tr>   
+</tbody>
+</table>
+
+<div class="leftAlign">
+    <h2>Max</h2>
+    <div>This is the simplest and most intuivite voting algorithm.</div>
+    <div>In this algorithm, the sum of each vote is computed and the winner is the highest ranked choice</div>
+    <div>Giving, in the example above:</div>
+    <ul>
+        <li>Apple: 7 points</li>
+        <li>Cherry: 7 points</li>
+        <li class="winner">Pear: 8 points</li>
+    </ul>
+    <div>This algorithm is the only one allowing multiple choice to have the same vote.</div>
+    <div>This type of vote suffers from <em>bipolar</em> voters (those who vote with 1 or 5 but not in between) since the vote 5 has a lot more weight than note of 1</div> 
+
+    <h2>Bordat</h2>
+    <div>This algorithm is similar to Max algorithm above except that it is first ranking the choices for each voter and fixing notes to the rank order</div>
+    <div>In the example above, Cindy's vote would be sorted and ranked</div>
+    <ul>
+        <li>Apple: 2 (instead of 4)</li>
+        <li>Cherry: 1 (instead of 1)</li>
+        <li>Pear: 3 (instead of 5)</li>    
+    </ul>
+    <div>Then summing the votes gives this result:</div>
+    <ul>
+        <li>Apple: 5 points</li>
+        <li class="winner">Cherry: 7 points</li>
+        <li>Pear: 6 points</li>
+    </ul>
+
+    <h2>Binary</h2>
+    <div>A simple Yes/No voting.</div>
+    <div>This is like Bordat algorithm with only two choices (1: No and 2: Yes).</div> 
+    <div>It's probably more interesting to check the poll's file after voting to have a list of voter and their vote.</div>
+    <div><em>Not applicable for the example above</em></div>
+
+
+
+    <h2>Condorcet</h2>
+    <div>This algorithm compares each choice for all voters to other choices and rank them based on the number of time they win</div>
+    <div>In the example above, such comparison would yield</div>
+    <ul>
+        <li>Apple vs Cherry: Wins 1 time (for Cindy), looses 2 times (for Alice and Bob) => <b>Lost</b></li>
+        <li>Apple vs Pear: Wins 1 time (for Alice), looses 2 times (for Bob and Cindy) => <b>Lost</b></li>
+        <li>Cherry vs Pear: Wins 2 times (for Alice and Bob), fails 1 time (for Cindy) => <b>Win</b></li>
+    </ul>
+    <div>Then summing the votes gives this result:</div>
+    <ul>
+        <li>Apple: Win 0 times (neither against Pear nor Cherry)</li>
+        <li class="winner">Cherry: Win 2 times (agains Pear and Apple)</li>
+        <li>Pear: Win 1 time (against Apple)</li>    
+    </ul>
+    <div>This algorithm can lead to a tie.</div>
+    <div>The main reason for using this algorithm is to select the best concensus among voters.</div>
+
+    <h2>First choice</h2>
+    <div>This algorithm extracts the first choice for each voter and only sum them</div>
+    <div>In the example above, such extraction would yield</div>
+    <ul>
+        <li>Apple: 0 first choice</li>
+        <li class="winner">Cherry: 2 first choices (Alice and Bob)</li>
+        <li>Pear: 1 first choice (Cindy)</li>
+    </ul>
+    <div>This algorithm is likely to give ties if the number of voter is small compared to the possible choices</div>
+
+
+
+    
+</div>
+<footer>Made by X-Ryl669</footer>
+</body>    
+</html>
