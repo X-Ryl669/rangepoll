@@ -18,13 +18,21 @@
 {% for choice in choices %}
       <div class="voteList">
         <h1>{{ choice.name | title }}</h1>
+{% if algorithm == "binary" %}
+        <div class="binary">
+        {% set choice_name = choice.name | escape %}
+          <input id="{{choice_name ~ '_no'}}" type="radio" name="{{choice_name}}" value="{{ 0 }}" /><label for="{{choice_name ~ '_no'}}"></label>
+          <input id="{{choice_name ~ '_yes'}}" type="radio" name="{{choice_name}}" value="{{ 1 }}" /><label for="{{choice_name ~ '_yes'}}"></label>
+        </div>
+{% else %}
         <div class="rating">
-        {% set choice_name = choice.name | urlencode %}
+        {% set choice_name = choice.name | escape %}
         {% for a in [1,2,3,4,5,] %}
           {% set in_id = choice_name ~ '_' ~ a %}
           <input id="{{in_id}}" type="radio" name="{{choice_name}}" value="{{ (6 - a) }}" /><label for={{in_id}}></label>
         {% endfor %}
         </div>
+{% endif %}
         <div class="descVote">{{ choice.desc | safe }}</div>
       </div>
 {% endfor %}

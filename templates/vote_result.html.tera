@@ -21,6 +21,7 @@
       <li><progress max="50" value="{{score[loop.index0]*10 | round}}">{{ score[loop.index0] | round(precision=1) }}</progress><span>{{ vote }}</span><value data-max="{{score_max}}">{{ score[loop.index0] | round(precision=1) }}</value></li>
 {% endfor %}
     </ul>
+    <help>Voting algorithm used is: {{ algorithm }} <a href="/public/html/voting_algorithm.html" class="noJS">?</a></help>
 {% endif %}
 </div>
 </form>

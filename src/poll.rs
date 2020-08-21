@@ -56,6 +56,9 @@ pub mod poll {
         // This is the max of sum vote, that is the choice with the maximum total number of points wins 
         #[serde(rename = "max")]
         Max,
+        // Used for simple Yes/No polling, the choice with the highest number of Yes wins 
+        #[serde(rename = "binary")]
+        Binary,
         // This is similar to max vote, that is the choice with the maximum total number of points wins but choice can't have the same number of point (obviously limited to 5 choices maximum)
         #[serde(rename = "bordat")]
         Bordat,
@@ -206,6 +209,7 @@ pub mod poll {
         pub name: String,
         pub desc: String,
         pub user: String, // Only used for user feedback
+        pub algorithm: String,
         pub deadline_date: String,
         pub voters: Vec<String>,
         pub votes: Vec<String>,
@@ -220,6 +224,7 @@ pub mod poll {
                     voters: Vec::new(),
                     deadline_date: "".to_string(),
                     user: "".to_string(),
+                    algorithm: "".to_string(),
                     votes: Vec::new(),
                     score: Vec::new(),
                     score_max: 0f32,
@@ -265,7 +270,9 @@ pub mod poll {
                 return PollResult::error(&poll.name, "<h1>Poll not completed yet</h1>");
             }
 
-            if poll.voting_algorithm != VotingAlgorithm::Max {
+            if     poll.voting_algorithm != VotingAlgorithm::Max 
+                && poll.voting_algorithm != VotingAlgorithm::Condorcet 
+                && poll.voting_algorithm != VotingAlgorithm::Binary {
                 for (row, name) in vote_matrix.as_rows().iter().zip(voters.iter()) { 
                     let l: HashSet<&usize> = HashSet::from_iter(row.iter());
                     if l.len() != row.len() {
@@ -282,6 +289,18 @@ pub mod poll {
                         votes.push((name.clone(), col.iter().sum::<usize>() as f32 / voters.len() as f32));
                     }
                 },
+                // Used for simple Yes/No polling, the choice with the highest number of Yes wins
+                VotingAlgorithm::Binary => {
+                    let mut max_score = 0;
+                    for (col, name) in vote_matrix.as_columns().iter().zip(choices.iter()) {
+                        let score = col.iter().sum::<usize>();
+                        if score > max_score {
+                            max_score = score;
+                        }
+                        votes.push((name.clone(), score as f32));
+                    }
+                    score_max = max_score as f32;
+                }
                 // Bordat is similar to max vote, but all votes are first normalized (worst choice get 1 point, less worst get 2 points and so on) before being summed
                 VotingAlgorithm::Bordat => {
                     // Normalize votes first
@@ -356,6 +375,7 @@ pub mod poll {
                 voters: poll.allowed_participant.clone(),
                 deadline_date: format!("{}", poll.deadline_date.format(DEADLINE_FORMAT)),
                 user: "".to_string(),
+                algorithm: format!("{:?}", poll.voting_algorithm),
                 votes: votes.iter().map(|a| a.0.clone()).collect(),
                 score: votes.iter().map(|a| a.1).collect(),
                 score_max: score_max,

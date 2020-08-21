@@ -580,3 +580,92 @@ a.noJS {
   text-transform: capitalize;
   font-weight: bold;
 }
+
+table.help {
+  margin: auto;
+  border: 1px solid;
+  border-collapse: collapse;
+}
+table.help thead tr {
+  border-bottom: 1px solid black;
+}
+table.help td {
+  padding: 0 2em;
+}
+div.leftAlign {
+  text-align: left;
+}
+div.leftAlign ul
+{
+  margin: 1em auto;
+  width: 90%;
+}
+div.leftAlign ul li.winner::after {
+  content: "✓";
+  color: #080;
+  padding-left: 0.2em;
+}
+div.leftAlign ul li.winner {
+  font-weight: 500;
+}
+footer {
+  position: fixed;
+  bottom: 1px;
+  right: 10px;
+  font-size: 0.7em;
+}
+help {
+  color: #888;
+}
+help a.noJS {
+  border-radius: 50%;
+  border: 2px solid #008;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #008;
+  font-family: monospace;
+  display: inline-block;
+}
+help a.noJS:hover {
+  color: #FFF;
+  background: #008;
+}
+div.binary input[type="radio"] + label::before {
+  font-size: 2rem;
+  filter: grayscale(1);
+  transition: all ease 0.3s;
+}
+div.binary input[type="radio"] {
+  display: none;
+}
+div.binary input[value="1"] + label::before {
+  content: "👍";
+}
+div.binary input[value="0"] + label::before {
+  content: "👎";
+}
+div.binary input:checked + label::before {
+  filter: grayscale(0);
+}
+div.binary input[type="radio"] + label:hover::before {
+  filter: grayscale(0) blur(0);
+}
+div.binary:hover label {
+  filter: blur(1px);
+}
+div.binary label {
+  height: 2rem;
+  display: inline-block;
+}
+div.binary {
+  height: 2rem;
+  padding: 0;
+  width: max-content;
+  margin: 0 auto;
+}
+div.binary:hover input:checked + label, div.binary:hover label:hover {
+  filter: none;
+}

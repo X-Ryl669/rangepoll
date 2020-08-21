@@ -94,7 +94,7 @@ function updateDialog(d) {
     if (voteEl.a.length) {
       // Change the behavior here
       votingAlgorithm = voteEl.attr("data-algorithm");
-      noChoice = voteEl.attr("data-nochoice") == "true";
+      noChoice = voteEl.attr("data-nochoice") == "true" || votingAlgorithm == "binary";
       $('.downHeader2 button').a[0].disabled = (!noChoice && hasNonVotedItem());
     }
 }
@@ -155,8 +155,8 @@ window.onload = function() {
         $('.downHeader2 button').toggleClass('flash', false);
         $('.downHeader2 button').a[0].disabled = (!noChoice && hasNonVotedItem());
     });
-    delegateEvent(dialog, 'change', '.rating input', function(e, ev) {
-        if (votingAlgorithm != "max" && votingAlgorithm != "condorcet" && $('.voteList').a.length <= 5) {
+    delegateEvent(dialog, 'change', '.rating input, .binary input', function(e, ev) {
+        if (votingAlgorithm != "max" && votingAlgorithm != "condorcet" && votingAlgorithm != "binary" && $('.voteList').a.length <= 5) {
           var dup = hasSameVoteValue();
           if (dup.length) {
             // Not allowed for this algorithm

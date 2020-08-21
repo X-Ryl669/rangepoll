@@ -2,7 +2,7 @@
 
 #[macro_use] extern crate rocket;
 #[macro_use] extern crate serde_derive;
-
+extern crate clap;
 
 use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
@@ -18,6 +18,7 @@ use rocket::response::status::Custom;
 
 // Let authentication be checked with Request Guard
 use rocket::request::{ self, Request, FromRequest };
+use clap::{ App, Arg };
 
 mod poll;
 mod voters;
@@ -275,76 +276,58 @@ fn static_files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("static/").join(file)).ok()
 }
 
-fn help(process_name: &String) {
-    println!(r#"Usage is: {:?} [command]
-with [command] any of:
-    -a localhost     Host to listen on
-    -p 80            Port to listen to
-    -g template.yaml Generate a template poll YAML file and save to template.yaml (recommanded: polls/example.yml)
-    -v voter.yaml    Generate a template voter YAML file and save to template.yaml (recommanded: voters/users.yml)
-    -t poll          Generate tokens for the given poll's voters so it can be distributed by email for example
-"#, process_name)
-}
 
 fn main() {
     // Start main backend
-    // Parse arguments
     let mut port: u16 = 8000;
     let mut host = "localhost".to_string();
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        // no arguments passed
-        1 => {
-            println!("Welcome to RangePoll server.");
-        },
-        // one argument passed
-        2 => {
-            help(&args[0]);
-            return;
-        },
-        // one command and one argument passed
-        3 => {
-            let cmd = &args[1];
-            let num = &args[2];
-            // parse the command
-            match &cmd[..] {
-                "-a" => {
-                    host = num.to_string();
-                },
-                "-p" => {
-                    match num.parse() { 
-                        Ok(n) => { port = n; },
-                        Err(_) => { eprintln!("error: second argument not an integer"); help(&args[0]); return; }
-                    };
-                },
-                "-g" => {
-                    poll::poll::gen_template(num);
-                    println!("Generated template poll file to {:?}", num);
-                    return;
-                },
-                "-v" => {
-                    voters::voters::gen_template(num);
-                    println!("Generated template voter file to {:?}", num);
-                    return;
-                }
-                "-t" => {
-                    let tokens = match poll::poll::gen_voters_token(num) {
-                        Ok(v) => v,
-                        Err(e) => { eprintln!("Error: {}", e); return; }
-                    };
 
-                    let max_voter_name = tokens.iter().map(|x| x.voter.len()).max().unwrap();
+    let cmd_args = App::new("rangepoll")
+                        .version("0.1.0")
+                        .author("Cyril R. <boite.pour.spam@gmail.com>")
+                        .about("A voting server to run poll with weighted choices and collecting results")
+                        .arg(Arg::with_name("port")
+                               .short("p")
+                               .long("port")
+                               .value_name("port number")
+                               .help("Sets the webserver port to listen to")
+                               .default_value("8000")
+                               .takes_value(true))
+                        .arg(Arg::with_name("host").short("a").long("host").value_name("hostname").help("Specify the webserver hostname").default_value("localhost").takes_value(true))
+                        .arg(Arg::with_name("poll").short("g").long("gen-template").value_name("template.yml").help("Generate a template poll YAML file and save to template.yaml (recommanded: polls/example.yml)").takes_value(true))
+                        .arg(Arg::with_name("voter").short("v").long("gen-voter").value_name("voter.yml").help("Generate a template voter YAML file and save to voter.yaml (recommanded: voters/voter.yml)").takes_value(true))
+                        .arg(Arg::with_name("token").short("t").long("gen-token").value_name("poll name").help("Generate tokens for the given poll's voters so it can be distributed by email for example").takes_value(true))
+                        .get_matches();
+    
+    if let Some(o) = cmd_args.value_of("port") {
+        port = o.parse().unwrap_or(8000);
+    }
+    if let Some(o) = cmd_args.value_of("host") {
+        host = o.to_string();
+    }
+    if let Some(o) = cmd_args.value_of("poll") {
+        poll::poll::gen_template(o);
+        println!("Generated template poll file to {:?}", o);
+        return;
+    }
+    if let Some(o) = cmd_args.value_of("voter") {
+        voters::voters::gen_template(o);
+        println!("Generated template voter file to {:?}", o);
+        return;
+    }
+    if let Some(o) = cmd_args.value_of("token") {
+        let tokens = match poll::poll::gen_voters_token(o) {
+            Ok(v) => v,
+            Err(e) => { eprintln!("Error: {}", e); return; }
+        };
 
-                    println!("{:width$}    Token", "Voter", width = max_voter_name);
-                    for token in tokens {
-                        println!("{:width$}    http://{}:{}/token/{}", token.voter, host, port, token.token, width = max_voter_name);
-                    }
-                    return;
-                }
-                _ => { help(&args[0]); return; }
-            }
-        },
-        _ => { help(&args[0]); return; }
+        let max_voter_name = tokens.iter().map(|x| x.voter.len()).max().unwrap();
+
+        println!("{:width$}    Token", "Voter", width = max_voter_name);
+        for token in tokens {
+            println!("{:width$}    http://{}:{}/token/{}", token.voter, host, port, token.token, width = max_voter_name);
+        }
+        return;
     }
 
 
