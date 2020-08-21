@@ -20,7 +20,7 @@ pub mod voters {
     }
 
     pub fn get_voter_list() -> Result<Vec<Voter>, serde_yaml::Error> {
-        let polls = glob(concat!(env!("CARGO_MANIFEST_DIR"), "/voters/*.yml")).expect("Failed to read glob pattern");
+        let polls = glob("./voters/*.yml").expect("Failed to read glob pattern");
         let mut output = Vec::new();
         for entry in polls {
             match entry {
@@ -41,7 +41,7 @@ pub mod voters {
         let voter = Voter { name: "Isaac".to_string(), 
                                 presentation: "I'm one of the best physician".to_string(), 
                                 password: "This is a very poor designed system".to_string(),
-                                admin: glob("/voters/*.yml").expect("Failed to read glob pattern").count() == 0,
+                                admin: glob("./voters/*.yml").expect("Failed to read glob pattern").count() == 0,
                             };
         let serial = serde_yaml::to_string(&voter);
         match serial {

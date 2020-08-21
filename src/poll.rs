@@ -498,7 +498,7 @@ pub mod poll {
     }
 
     pub fn get_poll_list() -> Result<Vec<Poll>, serde_yaml::Error> {
-        let polls = glob(concat!(env!("CARGO_MANIFEST_DIR"), "/polls/*.yml")).expect("Failed to read glob pattern");
+        let polls = glob("./polls/*.yml").expect("Failed to read glob pattern");
         let mut output = Vec::new();
         for entry in polls {
             match entry {
