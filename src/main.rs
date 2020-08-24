@@ -260,16 +260,6 @@ fn menu_not_logged() -> Flash<Redirect> {
 }
 
 
-/*
-#[get("/login")]
-fn login(cookies: Cookies) -> &'static str {
-    let auth_token = cookies.get("auth");
-    if (!is_cookie_valid(auth_token.value())) {
-        ""
-    }
-}
-*/
-
 // Temporary stuff below
 #[get("/public/<file..>")]
 fn static_files(file: PathBuf) -> Option<NamedFile> {
