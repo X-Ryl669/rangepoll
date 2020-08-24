@@ -23,7 +23,7 @@ choices:
     vote:
       - 5
       - 2
-      - 2
+      - 3
     voter:
       - John
       - Bob

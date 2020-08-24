@@ -12,16 +12,25 @@ use rocket::http::{ Cookies, Cookie, Status };
 use rocket::response::{ Flash, Redirect };
 use rocket::request::{ Form, LenientForm };
 use rocket::config::{ Config, Environment };
+use rocket::State;
 use rocket::response::status::Custom;
+use std::sync::Mutex;
 
 // Let authentication be checked with Request Guard
 use rocket::request::{ self, Request, FromRequest };
 use clap::{ App, Arg };
 use std::net::IpAddr;
+use url::{ Url };
 
 
 mod poll;
 mod voters;
+mod config;
+
+struct GlobalConfig
+{
+    config : Mutex<config::config::Config>,
+}
 
 #[derive(FromForm)]
 struct User {
@@ -101,9 +110,14 @@ fn log_with_token(mut cookies: Cookies, token: String) -> Result< Redirect, Cust
 }
 
 #[get("/login")]
-fn login() -> Template { 
+fn login(cfg: State<GlobalConfig>) -> Result<Template, Custom<Template> > {
+    if cfg.config.lock().unwrap().disable_login {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Authentication disabled");
+        return Err(Custom(Status::Unauthorized, Template::render("error/401", ctx)));
+    } 
     let context = LoginContext { site_name: "range poll", dest: "/login" };
-    Template::render("login", &context)
+    Ok(Template::render("login", &context))
 }
 
 #[post("/login", data = "<user>")]
@@ -269,8 +283,10 @@ fn static_files(file: PathBuf) -> Option<NamedFile> {
 
 fn main() {
     // Start main backend
-    let mut port: u16 = 8000;
-    let mut host = "localhost".to_string();
+    let mut port;
+    let mut host;
+    let scheme;
+    let cfg = GlobalConfig { config: Mutex::new(config::config::Config::new()) };
 
     let cmd_args = App::new("rangepoll")
                         .version("0.1.0")
@@ -281,20 +297,43 @@ fn main() {
                                .long("port")
                                .value_name("port number")
                                .help("Sets the webserver port to listen to")
-                               .default_value("8000")
                                .takes_value(true))
                         .arg(Arg::with_name("host").short("a").long("host").value_name("hostname").help("Specify the webserver hostname").default_value("localhost").takes_value(true))
-                        .arg(Arg::with_name("poll").short("g").long("gen-template").value_name("template.yml").help("Generate a template poll YAML file and save to template.yaml (recommanded: polls/example.yml)").takes_value(true))
-                        .arg(Arg::with_name("voter").short("v").long("gen-voter").value_name("voter.yml").help("Generate a template voter YAML file and save to voter.yaml (recommanded: voters/voter.yml)").takes_value(true))
+                        .arg(Arg::with_name("poll").short("g").long("gen-template").value_name("FILE").help("Generate a template poll YAML file and save to template.yaml (recommanded: polls/example.yml)").takes_value(true))
+                        .arg(Arg::with_name("voter").short("v").long("gen-voter").value_name("FILE").help("Generate a template voter YAML file and save to voter.yaml (recommanded: voters/voter.yml)").takes_value(true))
                         .arg(Arg::with_name("token").short("t").long("gen-token").value_name("poll name").help("Generate tokens for the given poll's voters so it can be distributed by email for example").takes_value(true))
+                        .arg(Arg::with_name("config").short("c").long("config").value_name("FILE").help("Specify the configuration file to use").default_value("config.yml").takes_value(true))
                         .get_matches();
     
+    // Deal with optional config path
+    {
+        let mut config = cfg.config.lock().unwrap();
+        *config = match config::config::get_config(cmd_args.value_of("config")) {
+            Ok(c) => c,
+            Err(e) => { eprintln!("Error while parsing config: {}", e); return; }
+        };
+        let host_url = match Url::parse(config.base_url.as_str()) {
+            Ok(u) => u,
+            Err(e) => { eprintln!("Invalid base URL in config: {}", e); return; }
+        };
+
+        host = host_url.host_str().unwrap_or("localhost").to_string();
+        port = host_url.port().unwrap_or(80);
+        scheme = host_url.scheme().to_string();
+    }
+
     if let Some(o) = cmd_args.value_of("port") {
         port = o.parse().unwrap_or(8000);
     }
     if let Some(o) = cmd_args.value_of("host") {
         host = o.to_string();
     }
+    {
+        let mut config = cfg.config.lock().unwrap();
+        config.base_url = format!("{}://{}:{}", scheme, host, port).to_string();
+    }
+
+
     if let Some(o) = cmd_args.value_of("poll") {
         poll::poll::gen_template(o);
         println!("Generated template poll file to {:?}", o);
@@ -315,13 +354,14 @@ fn main() {
 
         println!("{:width$}    Token", "Voter", width = max_voter_name);
         for token in tokens {
-            println!("{:width$}    http://{}:{}/token/{}", token.voter, host, port, token.token, width = max_voter_name);
+            println!("{:width$}    {}/token/{}", token.voter, cfg.config.lock().unwrap().base_url, token.token, width = max_voter_name);
         }
         return;
     }
 
-
     let host_interface = host.parse::<IpAddr>().unwrap_or("0.0.0.0".parse::<IpAddr>().unwrap());
+
+    println!("Configuration used: {:?}", cfg.config.lock().unwrap());
 
     let config = Config::build(Environment::Staging)
                         .address(host_interface.to_string())
@@ -334,6 +374,7 @@ fn main() {
 //    let r = rocket::ignite();
 
     r.attach(Template::fairing())
+     .manage(cfg)
      .mount("/", routes![index])
      // Ajax below
      // Login or logout
