@@ -26,10 +26,12 @@ use url::{ Url };
 mod poll;
 mod voters;
 mod config;
+mod rp_error;
+mod admin;
 
 struct GlobalConfig
 {
-    config : Mutex<config::config::Config>,
+    config : Mutex<config::Config>,
 }
 
 #[derive(FromForm)]
@@ -57,11 +59,11 @@ impl<'a, 'r> FromRequest<'a, 'r> for Voter {
 
 
 // Extract the "unknown" field name as vote only if they are integers
-impl<'f> request::FromForm<'f> for poll::poll::VotesForVoter {
+impl<'f> request::FromForm<'f> for poll::VotesForVoter {
     type Error = ();
 
     fn from_form(form_items: &mut request::FormItems<'f>, _: bool) -> Result<Self, ()> {
-        let mut votes = poll::poll::VotesForVoter {
+        let mut votes = poll::VotesForVoter {
             name: String::new(),
             votes: HashMap::new(),
         };
@@ -89,12 +91,28 @@ struct LoginContext {
     dest: &'static str
 }
 
+#[get("/user", rank=1)]
+fn get_user_menu(voter: Voter, cfg: State<GlobalConfig>) -> Template {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    let mut ctx = HashMap::new();
+    ctx.insert("name", voter.name);
+    ctx.insert("admin", allow_admin.to_string());
+    return Template::render("user_menu", ctx);
+}
+#[get("/user", rank=2)]
+fn get_user_menu_not_logged() -> Custom<String> {
+    Custom(Status::Unauthorized, "".to_string())
+}
 
 
 #[get("/token/<token>")]
 fn log_with_token(mut cookies: Cookies, token: String) -> Result< Redirect, Custom<Template> > {
     // Using JWT token here for authentication 
-    let voter = match poll::poll::validate_token(&token) {
+    let voter = match poll::validate_token(&token) {
         Ok(v) => v,
         Err(e) => {
             println!("Error ({}) with token: {}", e, token);
@@ -122,7 +140,7 @@ fn login(cfg: State<GlobalConfig>) -> Result<Template, Custom<Template> > {
 
 #[post("/login", data = "<user>")]
 fn post_login(mut cookies: Cookies, user: LenientForm<User>) -> Result< Redirect, Custom<Template> > {
-    let voters = match voters::voters::get_voter_list() {
+    let voters = match voters::get_voter_list() {
         Ok(v) => v,
         Err(_) => Vec::new(),
     };
@@ -186,7 +204,7 @@ fn not_found(req: &Request) -> Template {
 fn poll_list(voter: Voter) -> Result<Template, Flash<Redirect>> {
     let mut map = HashMap::new();
     // Need to extract all available polls
-    let polls = match poll::poll::get_poll_desc_list(&voter.name) {
+    let polls = match poll::get_poll_desc_list(&voter.name) {
         Ok(v) => v,
         Err(_) => { map.insert("polls", vec![]); return Ok(Template::render("poll_list", &map)); },
     };
@@ -201,7 +219,7 @@ fn poll_list_not_logged() -> Flash<Redirect> {
 #[get("/vote_for/<poll>", rank=1)]
 fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     // Need to extract all available polls
-    let mut ppoll = match poll::poll::get_poll_desc(&poll) {
+    let mut ppoll = match poll::get_poll_desc(&poll) {
         Ok(v) => v,
         Err(_) => { 
             let mut ctx = HashMap::new();
@@ -218,10 +236,10 @@ fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     Ok(Template::render("vote_for", &ppoll))
 }
 #[post("/vote_for/<poll>", rank=1, data="<form>")]
-fn post_vote_for(poll: String, voter: Voter, form: Form<poll::poll::VotesForVoter>) -> Result<Template, Flash<Redirect>> {
+fn post_vote_for(poll: String, voter: Voter, form: Form<poll::VotesForVoter>) -> Result<Template, Flash<Redirect>> {
     // Don't trust the form submitter and only use the authentication token we have generated here for the voter's name.
-    let vote = poll::poll::VotesForVoter { name: voter.name.clone(), votes: form.votes.clone() };
-    let mut ppoll = match poll::poll::vote_for_poll(&poll, &vote) {
+    let vote = poll::VotesForVoter { name: voter.name.clone(), votes: form.votes.clone() };
+    let mut ppoll = match poll::vote_for_poll(&poll, &vote) {
         Ok(v) => v,
         Err(e) => { return Err(Flash::error(Redirect::to(format!("/not_allowed/{}/{}", "/poll_list", poll)), format!("{:?}", e))); },
     };
@@ -249,7 +267,7 @@ fn not_allowed(dest: String, from: String) -> Template {
 #[get("/vote_results/<dest>", rank=1)]
 fn vote_results(dest: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     // Need to extract vote results for the given name
-    let mut pollr = match poll::poll::get_poll_result(dest.as_str(), voter.name.clone()) {
+    let mut pollr = match poll::get_poll_result(dest.as_str(), voter.name.clone()) {
         Ok(v) => v,
         Err(e) => { return Err(Flash::error(Redirect::to(format!("/not_allowed/{}/{}", "/poll_list", dest)), format!("{:?}", e))); },
     };
@@ -286,7 +304,7 @@ fn main() {
     let mut port;
     let mut host;
     let scheme;
-    let cfg = GlobalConfig { config: Mutex::new(config::config::Config::new()) };
+    let cfg = GlobalConfig { config: Mutex::new(config::Config::new()) };
 
     let cmd_args = App::new("rangepoll")
                         .version("0.1.0")
@@ -308,9 +326,13 @@ fn main() {
     // Deal with optional config path
     {
         let mut config = cfg.config.lock().unwrap();
-        *config = match config::config::get_config(cmd_args.value_of("config")) {
+        *config = match config::get_config(cmd_args.value_of("config")) {
             Ok(c) => c,
-            Err(e) => { eprintln!("Error while parsing config: {}", e); return; }
+            Err(e) => { 
+                eprintln!("Error while parsing config: {}", e); 
+                eprintln!("Saved default config to: {}", config::save_config(None, cmd_args.value_of("config")).unwrap_or_default());
+                return; 
+            }
         };
         let host_url = match Url::parse(config.base_url.as_str()) {
             Ok(u) => u,
@@ -335,17 +357,17 @@ fn main() {
 
 
     if let Some(o) = cmd_args.value_of("poll") {
-        poll::poll::gen_template(o);
+        poll::gen_template(o);
         println!("Generated template poll file to {:?}", o);
         return;
     }
     if let Some(o) = cmd_args.value_of("voter") {
-        voters::voters::gen_template(o);
+        voters::gen_template(o);
         println!("Generated template voter file to {:?}", o);
         return;
     }
     if let Some(o) = cmd_args.value_of("token") {
-        let tokens = match poll::poll::gen_voters_token(o) {
+        let tokens = match poll::gen_voters_token(o) {
             Ok(v) => v,
             Err(e) => { eprintln!("Error: {}", e); return; }
         };
@@ -380,9 +402,9 @@ fn main() {
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed, log_with_token])
      // Asynchronous application
-     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu])
+     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, get_user_menu])
      // Not logged in async routes
-     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged])
+     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, get_user_menu_not_logged])
 
      // Static below
      .mount("/", routes![static_files])

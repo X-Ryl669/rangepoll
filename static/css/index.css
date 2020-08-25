@@ -166,26 +166,41 @@ logo:after {
 
 body { padding: 1em; }
 
-a.user {
+div.user {
     position: fixed;
     top: 10px;
     right: 20px;
     text-decoration: none;
     color: #000;
+    z-index: 2;
 }
-a.user::after {
-    content: ' ';
-    position: absolute;
-    transition: all ease 0.3s;
-    top: 10px;
-    font-weight: bold;
+div.user ul
+{
+  max-height: 0;
+  overflow: hidden;
+  transition: all ease 0.6s;
+  transform: translateY(-100%);
+  padding: 1em;
+  border-radius: 10px;
+  background: #EEE;
+  z-index: -1;
+  margin: 0 -1em;
 }
-a.user:hover::after {
-    content: 'Log out';
-    right: 0px;
-    width: max-content;
-    top: 20px;
-    color: #800;
+div.user:hover ul
+{
+  max-height: 25em;
+  transform: translateY(0);
+}
+div.user ul li a 
+{
+  color: black;
+}
+div.user ul li:first-child {
+  margin-top: 1em;
+  transition: all ease 0.6s;
+}
+div.user:hover ul li:first-child {
+  margin-top: 0em;
 }
 
 div.dialog

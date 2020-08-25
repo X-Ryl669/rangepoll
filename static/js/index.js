@@ -75,16 +75,15 @@ function delegateEvent(element, event, descendentSelector, callback) {
   }, false);
 }
 
-function showLogOut() {
-    var user = getCookie("user");
-    if (user.length) $('a.user').removeClass('h').text(`Hi, ${user} ✘`);
+function showMenu(html) {
+    if (html) $('.user').removeClass('h').html(html);
 }
 
 
 var votingAlgorithm = "max";
 var noChoice = false;
 function updateDialog(d) {
-    showLogOut();
+    if ($('.user.h').a.length && getCookie("user")) ajax("/user", showMenu, ignore, {});
     $('div.dialog').html(d);
 
     var voteList = $('.voteList');
@@ -136,10 +135,11 @@ function uponError(e) {
 
 var target = getQueryVar("vote");
 
+ajax("/user", showMenu, ignore, {});
 ajax(target === false ? 'poll_list' : `vote_for/${target}`, updateDialog, uponError, {});
 
 window.onload = function() {
-    showLogOut();
+
     var dialog = $('div.dialog').a[0];
     delegateEvent(dialog, 'click', '[data-href]', function(e) {
         ajax($(e).attr('data-href'), updateDialog, uponError, {});
