@@ -202,6 +202,23 @@ div.user ul li:first-child {
 div.user:hover ul li:first-child {
   margin-top: 0em;
 }
+div.user ul li a::before {
+  color: #800;
+  font-size: 1.1em;
+  width: 1.6rem;
+  display: inline-block;
+}
+div.user ul li:first-child a::before {
+  content: "⚙";
+  font-size: 1.4em;
+}
+div.user ul li:last-child a::before {
+  content: "✘";
+}
+div.user ul li a:hover {
+  color: #800;
+  transition: all ease 0.5s;
+}
 
 div.dialog
 {
@@ -683,4 +700,47 @@ div.binary {
 }
 div.binary:hover input:checked + label, div.binary:hover label:hover {
   filter: none;
+}
+
+toolbar {
+  position: relative;
+  width: 30rem;
+  display: block;
+}
+
+toolbar icon {
+  display: inline-block;
+  cursor: pointer;
+  width: 5rem;
+  overflow: hidden;
+  height: 3rem;
+  transition: all 0.4s;
+  white-space: nowrap;
+  position: relative;
+  color: transparent;
+}
+toolbar icon::before {
+  font-size: 2rem;
+  width: 1em;
+  display: block;
+  position: absolute;
+  left: 30%;
+  color: black;
+  top: 0.5rem;
+  height: 2rem;
+}
+toolbar icon:hover {
+  color: black;
+}
+toolbar icon:hover::before {
+  text-shadow: 1px 1px 1px #888;
+}
+icon.sendemail::before {
+  content: '✉';
+}
+icon.edit::before {
+  content: '✎';
+}
+icon.delete::before {
+  content: '✘';
 }

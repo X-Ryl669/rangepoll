@@ -108,6 +108,27 @@ fn get_user_menu_not_logged() -> Custom<String> {
     Custom(Status::Unauthorized, "".to_string())
 }
 
+#[get("/admin", rank=1)]
+fn get_admin(voter: Voter, cfg: State<GlobalConfig>) -> Result< Template, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+    let admin = admin::get_admin(&voter.name);
+    return Ok(Template::render("admin", admin));
+}
+#[get("/admin", rank=2)]
+fn get_admin_not_logged() -> Custom<String> {
+    Custom(Status::Unauthorized, "Not logged in".to_string())
+}
+
+
 
 #[get("/token/<token>")]
 fn log_with_token(mut cookies: Cookies, token: String) -> Result< Redirect, Custom<Template> > {
@@ -402,9 +423,9 @@ fn main() {
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed, log_with_token])
      // Asynchronous application
-     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, get_user_menu])
+     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, get_user_menu, get_admin])
      // Not logged in async routes
-     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, get_user_menu_not_logged])
+     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, get_user_menu_not_logged, get_admin_not_logged])
 
      // Static below
      .mount("/", routes![static_files])

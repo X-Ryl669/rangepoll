@@ -144,10 +144,12 @@ window.onload = function() {
     delegateEvent(dialog, 'click', '[data-href]', function(e) {
         ajax($(e).attr('data-href'), updateDialog, uponError, {});
     });
-    delegateEvent(dialog, 'click', 'a[href]', function(e, ev) {
-      if (e.classList.contains('noJS')) return true;
-      cancel(ev);
-      ajax($(e).attr('href'), updateDialog, uponError, {});
+    $('div.dialog,div.user').each(function(el) {
+      delegateEvent(el, 'click', 'a[href]', function(e, ev) {
+        if (e.classList.contains('noJS')) return true;
+        cancel(ev);
+        ajax($(e).attr('href'), updateDialog, uponError, {});
+      });
     });
     delegateEvent(dialog, 'click', '.voteList', function(e) {
         $('.voteList').toggleClass('notActive', true);
