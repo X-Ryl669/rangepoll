@@ -1,5 +1,6 @@
 ---
 name: Best fruit
+filename: fruit
 desc_markdown: fruit.md
 allowed_participant:
   - John
@@ -13,7 +14,7 @@ choices:
     vote:
       - 3
       - 4
-      - 4
+      - 5
     voter:
       - John
       - Bob

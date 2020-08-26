@@ -172,7 +172,10 @@ div.user {
     right: 20px;
     text-decoration: none;
     color: #000;
-    z-index: 2;
+}
+div.user span {
+  position: relative;
+  z-index: 2;
 }
 div.user ul
 {
@@ -477,7 +480,7 @@ div.voteList > h1:first-child {
 #votes {
     margin: 2em auto;
 }
-.downHeader2 button { background: #fff2ca; }
+.downHeader2 button { background: #fff2ca; height: 4rem; }
 .downHeader2 button:hover {
     background: #FFF8E0;
     box-shadow: 0 0 5px #888;
@@ -613,16 +616,19 @@ a.noJS {
   font-weight: bold;
 }
 
-table.help {
+table.help, table.admin {
   margin: auto;
   border: 1px solid;
   border-collapse: collapse;
 }
-table.help thead tr {
+table.help thead tr, table.admin tr {
   border-bottom: 1px solid black;
 }
 table.help td {
   padding: 0 2em;
+}
+table.admin td {
+  padding: 0 0.2em;
 }
 div.leftAlign {
   text-align: left;
@@ -701,12 +707,13 @@ div.binary {
 div.binary:hover input:checked + label, div.binary:hover label:hover {
   filter: none;
 }
-
+/*
 toolbar {
   position: relative;
   width: 30rem;
   display: block;
 }
+*/
 
 toolbar icon {
   display: inline-block;
@@ -743,4 +750,20 @@ icon.edit::before {
 }
 icon.delete::before {
   content: '✘';
+}
+table.admin ul li:nth-child(2n+1) {
+  background: #EEE;
+}
+table.admin ul li {
+  min-width: 25em;
+  height: 2rem;
+  line-height: 2rem;
+}
+table.admin ul {
+  border: 1px solid #DDD;
+  border-width: 0 1px;
+}
+table.admin ul li select {
+  width: 90%;
+  height: 100%;
 }

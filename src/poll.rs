@@ -130,6 +130,9 @@ pub struct Poll {
 
     #[serde(skip)]
     filepath: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filename: Option<String>,
+    
     // The cruft below is to support either description or desc_markdown key in the poll
     // In case the former is used, it's copied to this invisible desc field
     #[serde(skip)]
@@ -424,6 +427,10 @@ pub fn parse_poll_file(path: &Path) -> Result<Poll, RPError> {
     // If we don't have a description, let's fetch from markdown
     poll.desc = build_desc(&poll.description, &poll.desc_markdown, path)?;
     poll.filepath = path.to_str().unwrap().to_string();
+    poll.filename = match path.file_stem() {
+                        Some(path) => Some(path.to_str().unwrap().to_string()),
+                        None => None,
+                    };
     return Ok(poll);
 }
 
@@ -480,10 +487,7 @@ pub fn get_poll_desc_list(voter: &String) -> Result<Vec<PollDesc>, serde_yaml::E
         if !poll.allowed_participant.contains(voter) {
             continue;
         }
-        let filepath = match Path::new(&poll.filepath).file_stem() {
-            Some(path) => path.to_str().unwrap().to_string(),
-            None => "".to_string(),
-        };
+        let filepath = poll.filename.unwrap_or("".to_string());
         let close_date = poll.deadline_date.signed_duration_since(Utc::now()) < chrono::Duration::days(1);
         let done = poll.deadline_date.signed_duration_since(Utc::now()) < chrono::Duration::seconds(1);
         let opt = poll.options.unwrap_or_default();
@@ -565,6 +569,7 @@ pub fn gen_template(dest: &str) {
 
     let poll = Poll {   name:"Best fruit".to_string(),
                         filepath: "".to_string(),
+                        filename: None,
                         desc: "".to_string(),
                         description: Some("Choose your best fruit".to_string()),
                         desc_markdown: None, 
