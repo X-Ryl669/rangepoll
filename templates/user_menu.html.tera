@@ -1,0 +1,7 @@
+<span>Hi, {{name}}</span>
+<ul>
+{% if admin %}
+<li><a href="/admin" class="noJS">Settings</a></li>
+{% endif %}
+<li><a href="/logout" class="noJS">Log out</a></li>
+</ul>

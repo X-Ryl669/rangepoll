@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="public/css/index.css" rel="stylesheet"/>
+    <script src="public/js/njs.min.js"></script>
+    <script src="public/js/common.js"></script>
+</head>
+<body>
+<logo>Rangepoll</logo>
+<div class="h user"></div>
+<div class='dialog'>
+<h1>Hello {{ admin | title }}<h1>
+<h3>Voters' list (click to edit)</h3>
+<form method="POST" action="/update_voter">
+<table class="admin">
+<thead>
+<tr><th>Filename</th><th>Name</th><th>Email</th><th>Presentation</th><th>Password</th><th>Admin</th><th></th></tr>
+</thead>
+<tbody>
+{% for voter in voters %}
+{% set votername = voter.name | escape %}
+<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.name}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{votername}}"><icon class="delete">Delete</icon></toolbar></td></tr>
+{% endfor %}
+<tr><td><input type="text" name="new_voter_filename"></td><td><input type="text" name="new_voter_name"></td><td><input type="text" name="new_voter_email"></td><td><input type="text" name="new_voter_presentation"></td><td><input type="password" name="new_voter_password"></td><td><input name="new_voter_admin" type="checkbox" /></td><td><button>Submit</button></td></tr>
+</tbody>
+</table>
+</form>
+
+
+<h3>Polls' list</h3>
+<form method="POST" action="/update_poll">
+<table class="admin">
+<thead>
+<tr><th>Filename</th><th>Name</th><th>Voters</th><th>Actions</th></tr>
+</thead>
+<tbody>
+{% for poll in polls %}
+<tr class="poll"><td>{{poll.filename}}</td><td>{{poll.name}}</td><td><ul>
+  {% for voter in poll.allowed_participant %}
+    {% if inv_name is containing(voter) %}
+     <li>{{voter}} <button name="del_voter" value="{{ inv_name[voter] | escape }}">✘</button></li>
+    {% endif %}
+  {% endfor %}
+   <li>+<select name="{{poll.filename ~ '_voters'}}">
+  {% for voter in voters %}
+    <option value="{{voter.filename | escape }}"> {{ voter.name }}</option>
+  {% endfor %}
+   </select>
+   </li>
+</ul>
+{% set pollname = poll.filename | escape %}
+</td><td><toolbar data-rel="{{pollname}}"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="delete">Delete</icon></toolbar></td></tr>
+{% endfor %}
+<tr><td><input type="text" name="new_poll_filename"></td><td><input type="text" name="new_poll_name"></td><td></td><td><button>Create new poll</button></td></tr>
+</tbody>
+</table>
+</div>
+</body>
+<script>
+    function updateDialog(d) {
+        $('div.dialog').html(d);
+    }
+
+    
+    $('toolbar icon').on('click', function(e) {
+        var type = e.target.classList[0];
+        var parentForm = $(e.target).parent('form');
+        var dest = $(e.target).parent().attr('data-rel');
+        ajax(`${parentForm.a[0].action}/${type}/${dest}`, updateDialog, ignore, {});
+        cancel(e);
+    });
+
+    $('tr.voter td').on('click', function(e) {
+        cancel(e);
+        var tr = $(e.target).parent();
+        var theTR = $(e.target).parent().child('td');
+        tr.parent().child('tr:last-child td input').each(function(el, i) {
+            el.value = theTR.eq(i).text();
+        });
+    });
+</script>
+</html>
