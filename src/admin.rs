@@ -5,10 +5,28 @@ use crate::poll;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct VoterMap {
+    pub fullname: String,
+    pub email:    String,
+    pub filestem: String,
+}
+
+impl VoterMap {
+    pub fn new(voter: &voters::Voter) -> VoterMap {
+        VoterMap { 
+            fullname: voter.fullname.as_ref().unwrap_or(&voter.username).clone(),
+            email: voter.email.as_ref().unwrap_or(&"".to_string()).clone(),
+            filestem: voter.filename.as_ref().unwrap_or(&"".to_string()).clone(),
+        }
+    }
+}
+
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Admin {
     pub voters: Vec<voters::Voter>,
     pub polls: Vec<poll::Poll>,
-    pub inv_name: HashMap<String, String>,
+    pub inv_name: HashMap<String, VoterMap>,
     pub admin: String,
 }
 
@@ -22,7 +40,7 @@ impl Admin {
                 inv_name: HashMap::new(),
             };
         for voter in &adm.voters {
-            adm.inv_name.insert(voter.username.clone(), voter.fullname.as_ref().unwrap_or(&voter.username).clone());
+            adm.inv_name.insert(voter.username.clone(), VoterMap::new(&voter));
         }
         return adm;
     }
@@ -73,6 +91,9 @@ pub fn update_poll(actor: &str, action: &str, poll_filename: &str, poll: Option<
     match action.to_ascii_lowercase().as_str()
     {
         "delete" => Ok(poll::delete_poll(&poll_filename)),
+        "edit" => {
+            Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotConnected, format!("{} not connected", action))))
+        },
         "update" => {
             if poll.is_none() {
                 return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{} is empty", actor))));

@@ -19,7 +19,7 @@
 <tbody>
 {% for voter in voters %}
 {% set votername = voter.username | escape %}
-<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.username}}</td><td>{{voter.fullname}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ '$' ~ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{voter.filename}}"><icon class="delete">Delete</icon></toolbar></td></tr>
+<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.username}}</td><td>{{voter.fullname}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ '$' ~ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{voter.filename}}"  data-dest="/update_voter"><icon class="delete">Delete</icon></toolbar></td></tr>
 {% endfor %}
 <tr><td><input type="text" name="new_voter_filename"></td><td><input type="text" name="new_voter_name"></td><td><input type="text" name="new_voter_fullname"></td><td><input type="text" name="new_voter_email"></td><td><input type="text" name="new_voter_presentation"></td><td><input type="password" name="new_voter_password"></td><td><input name="new_voter_admin" type="checkbox" /></td><td><button>Submit</button></td></tr>
 </tbody>
@@ -35,7 +35,7 @@
   {% for voter in poll.allowed_participant %}
     {% if inv_name is containing(voter) %}
       {% set delpollname = poll.filename ~ ":" ~ voter %}
-     <li>{{inv_name[voter]}} <button name="del_voter" value="{{ delpollname | escape }}">✘</button></li>
+     <li>{{inv_name[voter].fullname}} <button name="del_voter" value="{{ delpollname | escape }}">✘</button></li>
     {% endif %}
   {% endfor %}
    <li><select name="{{poll.filename}}" required autocomplete="off"><option value="" disabled selected default>Add voter:</option>
@@ -46,7 +46,7 @@
    </li>
 </ul>
 {% set pollname = poll.filename | escape %}
-</span><span class="td"><toolbar data-rel="{{pollname}}"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="delete">Delete</icon></toolbar></span></div>
+</span><span class="td"><toolbar data-rel="{{pollname}}" data-dest="/update_poll"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="delete">Delete</icon></toolbar></span></div>
 {% endfor %}
 <form method="POST" action="/update_poll" class='tr'>
   <span class="td"><input type="text" name="new_poll_filename"></span><span class="td"><input type="text" name="new_poll_name"></span><span class="td"></span><span class="td"><button>Create new poll</button></span>
@@ -62,9 +62,9 @@
     
     $('toolbar icon').on('click', function(e) {
         var type = e.target.classList[0];
-        var parentForm = $(e.target).parent('form');
+        var destURL = $(e.target).parent().attr('data-dest'); 
         var dest = $(e.target).parent().attr('data-rel');
-        window.location = `${parentForm.a[0].action}/${type}/${dest}`;
+        window.location = `${destURL}/${type}/${dest}`;
     });
 
     $('tr.voter td').on('click', function(e) {
