@@ -85,6 +85,16 @@ impl<'f> request::FromForm<'f> for poll::VotesForVoter {
     }
 }
 
+#[derive(FromForm)]
+struct UpdateVoter {
+    new_voter_filename: String,
+    new_voter_name: String,
+    new_voter_email: String,
+    new_voter_presentation: String,
+    new_voter_password: String,
+    new_voter_admin: bool,
+}
+
 #[derive(Serialize)]
 struct LoginContext {
     site_name: &'static str,
@@ -124,10 +134,67 @@ fn get_admin(voter: Voter, cfg: State<GlobalConfig>) -> Result< Template, Custom
     return Ok(Template::render("admin", admin));
 }
 #[get("/admin", rank=2)]
-fn get_admin_not_logged() -> Custom<String> {
-    Custom(Status::Unauthorized, "Not logged in".to_string())
+fn get_admin_not_logged() -> Custom<Template> {
+    Custom(Status::Unauthorized, Template::render("forbidden", vec![ ("dest", "/") ].into_iter().collect::<HashMap<&str, &str>>()))
 }
-
+#[get("/update_voter/<action>/<filename>", rank=1)]
+fn get_update_voter(voter: Voter, cfg: State<GlobalConfig>, action: String, filename: String) -> Result< Redirect, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin  {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+    match admin::update_voter(&voter.name, &action, &filename, None)
+    {
+        Ok(_) => { return Ok(Redirect::to("/admin")); },
+        Err(_e) =>
+        {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Action not allowed");
+            return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+        }
+    }
+}
+#[get("/update_voter/<_param..>", rank=3)]
+fn get_update_voter_not_logged(_param: PathBuf) -> Custom<Template> {
+    Custom(Status::Unauthorized, Template::render("forbidden", vec![ ("dest", "/") ].into_iter().collect::<HashMap<&str, &str>>()))
+}
+#[post("/update_voter", data="<new_voter>")]
+fn post_update_voter(voter: Voter, cfg: State<GlobalConfig>, new_voter: LenientForm<UpdateVoter>) -> Result< Redirect, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin  {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+    let v = voters::Voter {
+        name: new_voter.new_voter_name.clone(),
+        email: Some(new_voter.new_voter_email.clone()),
+        presentation: new_voter.new_voter_presentation.clone(),
+        password: new_voter.new_voter_password.clone(),
+        admin: new_voter.new_voter_admin,
+        filename: None,
+    };
+    match admin::update_voter(&voter.name, "update", &new_voter.new_voter_filename, Some(&v))
+    {
+        Ok(_) => { return Ok(Redirect::to("/admin")); },
+        Err(_e) =>
+        {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Action not allowed");
+            return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+        }
+    }
+}
 
 
 #[get("/token/<token>")]
@@ -264,11 +331,7 @@ fn post_vote_for(poll: String, voter: Voter, form: Form<poll::VotesForVoter>) ->
         Ok(v) => v,
         Err(e) => { return Err(Flash::error(Redirect::to(format!("/not_allowed/{}/{}", "/poll_list", poll)), format!("{:?}", e))); },
     };
-/*    if !ppoll.allowed_participant.contains(&voter.name) {
-        return Err(Flash::error(Redirect::to("/not_allowed/poll_list/".to_owned() + &poll), "Not allowed for you to vote"));
-    } else {
-    }
-*/    
+
     ppoll.user = voter.name.clone();
     Ok(Template::render("vote_result", &ppoll))
 }
@@ -423,9 +486,11 @@ fn main() {
      // Login or logout
      .mount("/", routes![login, post_login, logout, not_allowed, log_with_token])
      // Asynchronous application
-     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, get_user_menu, get_admin])
+     .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, 
+                         get_user_menu, get_admin, get_update_voter, post_update_voter])
      // Not logged in async routes
-     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, get_user_menu_not_logged, get_admin_not_logged])
+     .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, 
+                         get_user_menu_not_logged, get_admin_not_logged, get_update_voter_not_logged])
 
      // Static below
      .mount("/", routes![static_files])

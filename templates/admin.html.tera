@@ -19,7 +19,7 @@
 <tbody>
 {% for voter in voters %}
 {% set votername = voter.name | escape %}
-<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.name}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{votername}}"><icon class="delete">Delete</icon></toolbar></td></tr>
+<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.name}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ '$' ~ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{voter.filename}}"><icon class="delete">Delete</icon></toolbar></td></tr>
 {% endfor %}
 <tr><td><input type="text" name="new_voter_filename"></td><td><input type="text" name="new_voter_name"></td><td><input type="text" name="new_voter_email"></td><td><input type="text" name="new_voter_presentation"></td><td><input type="password" name="new_voter_password"></td><td><input name="new_voter_admin" type="checkbox" /></td><td><button>Submit</button></td></tr>
 </tbody>
@@ -66,8 +66,7 @@
         var type = e.target.classList[0];
         var parentForm = $(e.target).parent('form');
         var dest = $(e.target).parent().attr('data-rel');
-        ajax(`${parentForm.a[0].action}/${type}/${dest}`, updateDialog, ignore, {});
-        cancel(e);
+        window.location = `${parentForm.a[0].action}/${type}/${dest}`;
     });
 
     $('tr.voter td').on('click', function(e) {
@@ -76,6 +75,7 @@
         var theTR = $(e.target).parent().child('td');
         tr.parent().child('tr:last-child td input').each(function(el, i) {
             el.value = theTR.eq(i).text();
+            el.checked = theTR.eq(i).child('input').prop("checked") == 'true';
         });
     });
 </script>

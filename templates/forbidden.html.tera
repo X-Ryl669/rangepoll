@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>You are not allowed to perform this action</h1>
+<a href="{{ dest }}">Click here to return to main page</a>
+</body>
+</html>

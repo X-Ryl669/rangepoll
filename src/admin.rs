@@ -31,3 +31,29 @@ impl Admin {
 pub fn get_admin(voter: &str) -> Admin {
     return Admin::new(voter);
 }
+
+pub fn update_voter(actor: &str, action: &str, voter_name: &str, voter: Option<&voters::Voter>) -> Result<bool, RPError> {
+    // Check if the current user is admin too
+    let admin = get_admin(actor);
+    let cur_user_is_admin = match admin.voters.iter().filter(|&x| x.name == actor).next() 
+        {
+            Some(v) => v.admin,
+            None => false
+        };
+    if !cur_user_is_admin {
+        return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, format!("{} is not an admin", actor))));
+    }
+
+    match action.to_ascii_lowercase().as_str()
+    {
+        "delete" => Ok(voters::delete_voter(&voter_name)),
+        "update" => {
+            if voter.is_none() {
+                return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{} is empty", actor))));
+            }
+            Ok(voters::update_voter(&voter_name, voter.unwrap()))
+        },
+        _ => Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", action))))
+    } 
+
+}

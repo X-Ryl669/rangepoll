@@ -42,6 +42,19 @@ pub fn get_voter_list() -> Result<Vec<Voter>, serde_yaml::Error> {
     return Ok(output);
 }
 
+pub fn delete_voter(filestem: &str) -> bool {
+    fs::remove_file(format!("voters/{}.yml", filestem)).is_ok() 
+}
+
+pub fn update_voter(filestem: &str, voter: &Voter) -> bool {
+    let serial = serde_yaml::to_string(&voter);
+    match serial {
+        Ok(v) => { fs::write(format!("voters/{}.yml", filestem), v).expect("Failed writing"); true },
+        Err(e) => { println!("Failed to save file {:?} with error: {:?}", filestem, e); false },
+    }
+}
+
+
 pub fn gen_template(dest: &str) {
     let voter = Voter { name: "Isaac".to_string(), 
                             presentation: "I'm one of the best physician".to_string(), 
