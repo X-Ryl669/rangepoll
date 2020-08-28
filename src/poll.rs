@@ -80,7 +80,7 @@ impl Default for VotingAlgorithm {
 
 #[derive(Debug)]
 pub struct VotesForVoter {
-    pub name: String,
+    pub username: String,
     pub votes: HashMap<String, u32>,
 }
 
@@ -155,6 +155,24 @@ pub struct Poll {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<PollOptions>,
+}
+
+impl Poll {
+    pub fn new(name: String, desc: Option<String>, choices: Option<Vec<Choice>> ) -> Poll {
+        Poll {   
+            name:name,
+            filepath: "".to_string(),
+            filename: None,
+            desc: "".to_string(),
+            description: desc,
+            desc_markdown: None, 
+            allowed_participant: vec![],
+            deadline_date: Utc::now(),
+            choices: choices.unwrap_or(Vec::new()),
+            voting_algorithm: VotingAlgorithm::Max,
+            options: None,
+        }
+    }
 }
 
 // This is for the parsed poll from a file
@@ -522,8 +540,8 @@ pub fn get_poll_result(name: &str, voter_name: String) -> Result<PollResult, RPE
 
 pub fn vote_for_poll(name: &str,  voters: &VotesForVoter) -> Result<PollResult, RPError> {
     let mut poll = find_poll_desc(name)?;
-    if !poll.allowed_participant.contains(&voters.name) {
-        return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, format!("{} not allowed", voters.name))));
+    if !poll.allowed_participant.contains(&voters.username) {
+        return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::PermissionDenied, format!("{} not allowed", voters.username))));
     }
     // Can we still accept this vote ?
     let late_vote = match &poll.options { Some(o) => o.allow_late_vote, None => false };
@@ -534,7 +552,7 @@ pub fn vote_for_poll(name: &str,  voters: &VotesForVoter) -> Result<PollResult, 
 
 
     for choice in &mut poll.choices {
-        let index = choice.voter.iter().position(|r| r == &voters.name);
+        let index = choice.voter.iter().position(|r| r == &voters.username);
         // Check if we have a vote for this choice
         let vote = voters.votes.get(&choice.name);
         if vote == None {
@@ -549,7 +567,7 @@ pub fn vote_for_poll(name: &str,  voters: &VotesForVoter) -> Result<PollResult, 
         match index {
             Some(n) => choice.vote[n] = *vote.unwrap() as usize,
             None => { 
-                choice.voter.push(voters.name.clone());
+                choice.voter.push(voters.username.clone());
                 choice.vote.push(*vote.unwrap() as usize);
             }
         }
@@ -567,23 +585,59 @@ pub fn gen_template(dest: &str) {
     choices.push(Choice { name:"pear".to_string(), desc: "".to_string(), description: Some("A pear is good".to_string()), desc_markdown: None, vote: vec![3, 4], voter: vec!["John".to_string(), "Bob".to_string()] });
     choices.push(Choice { name:"apple".to_string(), desc: "".to_string(), description: Some("An apple a day...".to_string()), desc_markdown: None, vote: vec![5, 2], voter: vec!["John".to_string(), "Bob".to_string()] });
 
-    let poll = Poll {   name:"Best fruit".to_string(),
-                        filepath: "".to_string(),
-                        filename: None,
-                        desc: "".to_string(),
-                        description: Some("Choose your best fruit".to_string()),
-                        desc_markdown: None, 
-                        allowed_participant: vec!["John".to_string(), "Bob".to_string(), "Isaac".to_string()],
-                        deadline_date: Utc::now(),
-                        choices: choices,
-                        voting_algorithm: VotingAlgorithm::Bordat,
-                        options: None,
-                    };
+    let poll = Poll::new("Best fruit".to_string(), Some("Choose your best fruit".to_string()), Some(choices));
     let serial = serde_yaml::to_string(&poll);
     match serial {
         Ok(v) => fs::write(dest, v).expect("Failed writing"),
         Err(e) => println!("Failed to generate template {:?} with error: {:?}", dest, e),
     }
+}
+
+pub fn delete_poll(filestem: &str) -> bool {
+    fs::remove_file(format!("polls/{}.yml", filestem)).is_ok() 
+}
+
+pub fn update_poll(filestem: &str, poll: &Poll) -> bool {
+    let serial = serde_yaml::to_string(&poll);
+    match serial {
+        Ok(v) => { fs::write(format!("polls/{}.yml", filestem), v).expect("Failed writing"); true },
+        Err(e) => { println!("Failed to save file {:?} with error: {:?}", filestem, e); false },
+    }
+}
+
+pub fn del_voter_in_poll(filestem: &str, voter: &str) -> bool {
+    let mut poll = match find_poll_desc(filestem) {
+        Ok(v) => v,
+        Err(_) => { return false; }
+    };
+    if !poll.allowed_participant.contains(&voter.to_string()) {
+        return false;
+    }
+    // Do we have any vote already ? 
+    if poll.choices.iter().filter(|x| x.voter.len() > 0 || x.vote.len() > 0).count() > 0 {
+        // We have to rename this participant to "<deleted_voter>" so that previous vote results don't change
+        for choice in &mut poll.choices {
+            for prev_voter in choice.voter.iter_mut() {
+                if prev_voter == voter {
+                    *prev_voter = format!("<deleted_{}>", voter);
+                }
+            }
+        }
+    } 
+    poll.allowed_participant.retain(|x| x != voter);
+    return update_poll(filestem, &poll);
+}
+
+pub fn add_voter_in_poll(filestem: &str, voter: &str) -> bool {
+    let mut poll = match find_poll_desc(filestem) {
+        Ok(v) => v,
+        Err(_) => { return false; }
+    };
+    if poll.allowed_participant.contains(&voter.to_string()) {
+        return true;
+    }
+    poll.allowed_participant.push(voter.to_string());
+    return update_poll(filestem, &poll);
 }
 
 pub struct Token

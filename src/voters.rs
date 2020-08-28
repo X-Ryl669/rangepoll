@@ -6,9 +6,11 @@ use std::path::Path;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Voter {
-    pub name: String,
+    pub username: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fullname: Option<String>,
     pub presentation: String,
     pub password: String,
     
@@ -56,13 +58,15 @@ pub fn update_voter(filestem: &str, voter: &Voter) -> bool {
 
 
 pub fn gen_template(dest: &str) {
-    let voter = Voter { name: "Isaac".to_string(), 
-                            presentation: "I'm one of the best physician".to_string(), 
-                            email: Some("notinventedyet@newton.co.uk".to_string()),
-                            password: "This is a very poor designed system".to_string(),
-                            admin: glob("./voters/*.yml").expect("Failed to read glob pattern").count() == 0,
-                            filename: None,
-                        };
+    let voter = Voter { 
+                        username: "Isaac".to_string(), 
+                        presentation: "I'm one of the best physician".to_string(), 
+                        fullname: Some("Isaac Newton".to_string()),
+                        email: Some("notinventedyet@newton.co.uk".to_string()),
+                        password: "This is a very poor designed system".to_string(),
+                        admin: glob("./voters/*.yml").expect("Failed to read glob pattern").count() == 0,
+                        filename: None,
+                    };
     let serial = serde_yaml::to_string(&voter);
     match serial {
         Ok(v) => fs::write(dest, v).expect("Failed writing"),

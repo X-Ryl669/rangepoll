@@ -14,46 +14,44 @@
 <form method="POST" action="/update_voter">
 <table class="admin">
 <thead>
-<tr><th>Filename</th><th>Name</th><th>Email</th><th>Presentation</th><th>Password</th><th>Admin</th><th></th></tr>
+<tr><th>Filename</th><th>Username</th><th>Full Name</th><th>Email</th><th>Presentation</th><th>Password</th><th>Admin</th><th></th></tr>
 </thead>
 <tbody>
 {% for voter in voters %}
-{% set votername = voter.name | escape %}
-<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.name}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ '$' ~ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{voter.filename}}"><icon class="delete">Delete</icon></toolbar></td></tr>
+{% set votername = voter.username | escape %}
+<tr class="voter"><td>{{voter.filename}}</td><td>{{voter.username}}</td><td>{{voter.fullname}}</td><td>{{voter.email}}</td><td>{{voter.presentation}}</td><td>{{voter.password}}</td><td><input name="{{ '$' ~ votername ~ '_admin' }}" type="checkbox" {% if voter.admin %} checked="checked" {% endif %} /></td><td><toolbar data-rel="{{voter.filename}}"><icon class="delete">Delete</icon></toolbar></td></tr>
 {% endfor %}
-<tr><td><input type="text" name="new_voter_filename"></td><td><input type="text" name="new_voter_name"></td><td><input type="text" name="new_voter_email"></td><td><input type="text" name="new_voter_presentation"></td><td><input type="password" name="new_voter_password"></td><td><input name="new_voter_admin" type="checkbox" /></td><td><button>Submit</button></td></tr>
+<tr><td><input type="text" name="new_voter_filename"></td><td><input type="text" name="new_voter_name"></td><td><input type="text" name="new_voter_fullname"></td><td><input type="text" name="new_voter_email"></td><td><input type="text" name="new_voter_presentation"></td><td><input type="password" name="new_voter_password"></td><td><input name="new_voter_admin" type="checkbox" /></td><td><button>Submit</button></td></tr>
 </tbody>
 </table>
 </form>
 
 
 <h3>Polls' list</h3>
-<form method="POST" action="/update_poll">
-<table class="admin">
-<thead>
-<tr><th>Filename</th><th>Name</th><th>Voters</th><th>Actions</th></tr>
-</thead>
-<tbody>
+<div class="admin">
+<div class="tr head"><span class="th">Filename</span><span class="th">Name</span><span class="th">Voters</span><span class="th">Actions</span></div>
 {% for poll in polls %}
-<tr class="poll"><td>{{poll.filename}}</td><td>{{poll.name}}</td><td><ul>
+<div class="tr poll"><span class="td">{{poll.filename}}</span><span class="td">{{poll.name}}</span><span class="td"><ul>
   {% for voter in poll.allowed_participant %}
     {% if inv_name is containing(voter) %}
-     <li>{{voter}} <button name="del_voter" value="{{ inv_name[voter] | escape }}">✘</button></li>
+      {% set delpollname = poll.filename ~ ":" ~ voter %}
+     <li>{{inv_name[voter]}} <button name="del_voter" value="{{ delpollname | escape }}">✘</button></li>
     {% endif %}
   {% endfor %}
-   <li>+<select name="{{poll.filename ~ '_voters'}}">
+   <li><select name="{{poll.filename}}" required autocomplete="off"><option value="" disabled selected default>Add voter:</option>
   {% for voter in voters %}
-    <option value="{{voter.filename | escape }}"> {{ voter.name }}</option>
+    <option value="{{voter.username | escape }}"> {{ voter.fullname }}</option>
   {% endfor %}
    </select>
    </li>
 </ul>
 {% set pollname = poll.filename | escape %}
-</td><td><toolbar data-rel="{{pollname}}"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="delete">Delete</icon></toolbar></td></tr>
+</span><span class="td"><toolbar data-rel="{{pollname}}"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="delete">Delete</icon></toolbar></span></div>
 {% endfor %}
-<tr><td><input type="text" name="new_poll_filename"></td><td><input type="text" name="new_poll_name"></td><td></td><td><button>Create new poll</button></td></tr>
-</tbody>
-</table>
+<form method="POST" action="/update_poll" class='tr'>
+  <span class="td"><input type="text" name="new_poll_filename"></span><span class="td"><input type="text" name="new_poll_name"></span><span class="td"></span><span class="td"><button>Create new poll</button></span>
+</form>
+
 </div>
 </body>
 <script>
@@ -78,5 +76,27 @@
             el.checked = theTR.eq(i).child('input').prop("checked") == 'true';
         });
     });
+
+    function removeLine(target) {
+        return function() { $(target).parent().remove(); }
+    }
+    function addLine(target) {
+        return function() {
+            // Sorry, it's easier than patching the DOM tree and we don't care for the admin page
+            window.location.reload();
+        }
+    }
+
+    $('.tr.poll button[name=del_voter]').on('click', function(e) {
+        cancel(e);
+        ajax(`/update_poll/del_voter/${e.target.value}`, removeLine(e.target), ignore, {});
+    });
+
+    $('.tr.poll select').on('change', function(e) {
+        cancel(e);
+        ajax(`/update_poll/add_voter/${e.target.name}:${e.target.value}`, addLine(e.target), ignore, {});
+    });
+
+
 </script>
 </html>

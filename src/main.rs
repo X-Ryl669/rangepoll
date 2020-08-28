@@ -43,6 +43,7 @@ struct User {
 #[derive(Debug)]
 struct Voter {
     name: String,
+    fullname: String,
 }
 
 impl<'a, 'r> FromRequest<'a, 'r> for Voter {
@@ -51,7 +52,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Voter {
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Voter, ()> {
         let mut cookies = request.cookies();
         match cookies.get_private("auth") {
-            Some(cookie) => request::Outcome::Success(Voter{ name: cookie.value().to_string()}),
+            Some(cookie) => request::Outcome::Success(Voter{ name: cookie.value().to_string(), fullname: cookies.get("user").unwrap_or(&cookie).value().to_string() }),
             None => request::Outcome::Forward(())
         }
     }
@@ -64,13 +65,13 @@ impl<'f> request::FromForm<'f> for poll::VotesForVoter {
 
     fn from_form(form_items: &mut request::FormItems<'f>, _: bool) -> Result<Self, ()> {
         let mut votes = poll::VotesForVoter {
-            name: String::new(),
+            username: String::new(),
             votes: HashMap::new(),
         };
 
         for (key, value) in form_items.map(|i| i.key_value_decoded()) {
             if &*key == "name" {
-                votes.name = value;
+                votes.username = value;
             }
             else {
                 match value.parse() {
@@ -91,9 +92,16 @@ struct UpdateVoter {
     new_voter_name: String,
     new_voter_email: String,
     new_voter_presentation: String,
+    new_voter_fullname: String,
     new_voter_password: String,
     new_voter_admin: bool,
 }
+#[derive(FromForm)]
+struct UpdatePoll {
+    new_poll_filename: String,
+    new_poll_name: String,
+}
+
 
 #[derive(Serialize)]
 struct LoginContext {
@@ -177,9 +185,10 @@ fn post_update_voter(voter: Voter, cfg: State<GlobalConfig>, new_voter: LenientF
         return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
     }
     let v = voters::Voter {
-        name: new_voter.new_voter_name.clone(),
+        username: new_voter.new_voter_name.clone(),
         email: Some(new_voter.new_voter_email.clone()),
         presentation: new_voter.new_voter_presentation.clone(),
+        fullname: Some(new_voter.new_voter_fullname.clone()),
         password: new_voter.new_voter_password.clone(),
         admin: new_voter.new_voter_admin,
         filename: None,
@@ -195,6 +204,62 @@ fn post_update_voter(voter: Voter, cfg: State<GlobalConfig>, new_voter: LenientF
         }
     }
 }
+#[get("/update_poll/<action>/<filename>", rank=1)]
+fn get_update_poll(voter: Voter, cfg: State<GlobalConfig>, action: String, filename: String) -> Result< Redirect, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin  {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+    match admin::update_poll(&voter.name, &action, &filename, None)
+    {
+        Ok(_) => { return Ok(Redirect::to("/admin")); },
+        Err(_e) =>
+        {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Action not allowed");
+            return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+        }
+    }
+}
+#[get("/update_poll/<_param..>", rank=3)]
+fn get_update_poll_not_logged(_param: PathBuf) -> Custom<Template> {
+    Custom(Status::Unauthorized, Template::render("forbidden", vec![ ("dest", "/") ].into_iter().collect::<HashMap<&str, &str>>()))
+}
+#[post("/update_poll", data="<new_poll>")]
+fn post_update_poll(voter: Voter, cfg: State<GlobalConfig>, new_poll: LenientForm<UpdatePoll>) -> Result< Redirect, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin  {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+    
+    let v = poll::Poll::new(new_poll.new_poll_name.clone(), None, None);
+
+    match admin::update_poll(&voter.name, "update", &new_poll.new_poll_filename, Some(&v))
+    {
+        Ok(_) => { return Ok(Redirect::to("/admin")); },
+        Err(_e) =>
+        {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Action not allowed");
+            return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+        }
+    }
+}
+
+
+
 
 
 #[get("/token/<token>")]
@@ -239,9 +304,9 @@ fn post_login(mut cookies: Cookies, user: LenientForm<User>) -> Result< Redirect
         return Err(Custom(Status::MisdirectedRequest, Template::render("error/421", ctx)));
     }
     for voter in voters {
-        if user.name.to_lowercase() == voter.name.to_lowercase() && user.password == voter.password {
-            cookies.add_private(Cookie::new("auth", voter.name.clone()));
-            cookies.add(Cookie::new("user", voter.name.clone()));
+        if user.name.to_lowercase() == voter.username.to_lowercase() && user.password == voter.password {
+            cookies.add_private(Cookie::new("auth", voter.username.clone()));
+            cookies.add(Cookie::new("user", voter.fullname.unwrap_or(voter.username).clone()));
             return Ok(Redirect::to("/poll_list")); 
         } 
     }
@@ -326,7 +391,7 @@ fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
 #[post("/vote_for/<poll>", rank=1, data="<form>")]
 fn post_vote_for(poll: String, voter: Voter, form: Form<poll::VotesForVoter>) -> Result<Template, Flash<Redirect>> {
     // Don't trust the form submitter and only use the authentication token we have generated here for the voter's name.
-    let vote = poll::VotesForVoter { name: voter.name.clone(), votes: form.votes.clone() };
+    let vote = poll::VotesForVoter { username: voter.name.clone(), votes: form.votes.clone() };
     let mut ppoll = match poll::vote_for_poll(&poll, &vote) {
         Ok(v) => v,
         Err(e) => { return Err(Flash::error(Redirect::to(format!("/not_allowed/{}/{}", "/poll_list", poll)), format!("{:?}", e))); },
@@ -487,10 +552,12 @@ fn main() {
      .mount("/", routes![login, post_login, logout, not_allowed, log_with_token])
      // Asynchronous application
      .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, 
-                         get_user_menu, get_admin, get_update_voter, post_update_voter])
+                         get_user_menu, get_admin, get_update_voter, post_update_voter,
+                         get_update_poll, post_update_poll/*, edit_poll*/])
      // Not logged in async routes
      .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, 
-                         get_user_menu_not_logged, get_admin_not_logged, get_update_voter_not_logged])
+                         get_user_menu_not_logged, get_admin_not_logged, get_update_voter_not_logged,
+                         get_update_poll_not_logged])
 
      // Static below
      .mount("/", routes![static_files])

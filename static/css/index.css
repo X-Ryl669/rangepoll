@@ -534,8 +534,14 @@ progress {
 progress[value]::-webkit-progress-bar {
   background: #f1f1f1;
   box-shadow:  0 2px 5px 0px rgba(0,0,0,0.3);
+  border-radius: 10px;
 }
-progress[value]::-webkit-progress-value, progress[value]::-moz-progress-bar { 
+progress[value]::-webkit-progress-value { 
+  background: linear-gradient(to right, #EDF0F2 0%, #ADCFEC 100%);
+  border-radius: 10px; 
+  box-shadow: 0 0 5px #444;
+}
+progress[value]::-moz-progress-bar { 
   background: linear-gradient(to right, #EDF0F2 0%, #ADCFEC 100%);
   border-radius: 10px; 
   box-shadow: 0 0 5px #444;
@@ -616,19 +622,32 @@ a.noJS {
   font-weight: bold;
 }
 
-table.help, table.admin {
+table.help, table.admin, div.admin {
   margin: auto;
   border: 1px solid;
   border-collapse: collapse;
+  width: max-content;
 }
-table.help thead tr, table.admin tr {
+table.help thead tr, table.admin tr, div.admin div.tr, div.admin form.tr {
   border-bottom: 1px solid black;
 }
 table.help td {
   padding: 0 2em;
 }
-table.admin td {
+table.admin td, div.admin .td {
   padding: 0 0.2em;
+}
+div.table {
+  display: table;
+}
+div.tr, form.tr {
+  display: table-row;
+}
+span.td, span.th {
+  display: table-cell;
+}
+div.tr.head {
+  font-weight: bold;
 }
 div.leftAlign {
   text-align: left;
@@ -751,19 +770,22 @@ icon.edit::before {
 icon.delete::before {
   content: '✘';
 }
-table.admin ul li:nth-child(2n+1) {
+div.admin ul li:nth-child(2n+1) {
   background: #EEE;
 }
-table.admin ul li {
+div.admin ul li {
   min-width: 25em;
   height: 2rem;
   line-height: 2rem;
 }
-table.admin ul {
+div.admin ul {
   border: 1px solid #DDD;
   border-width: 0 1px;
 }
-table.admin ul li select {
-  width: 90%;
+div.admin ul li select {
+  width: 100%;
   height: 100%;
+}
+div.admin option[default] {
+  display: none;
 }
