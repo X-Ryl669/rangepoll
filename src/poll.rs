@@ -120,7 +120,9 @@ pub struct PollOptions {
     // Only show the result if every voter has voted
     #[serde(rename = "show-only-complete-result", default)]
     pub show_only_complete_result:  bool,
-
+    // Show the vote matrix in the result
+    #[serde(rename = "show-vote-matrix", default)]
+    pub show_vote_matrix:  bool,
 }
 
 
@@ -222,6 +224,14 @@ pub struct PollDesc {
     options: PollOptions,
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct VoteMatrix
+{
+    voters:  Vec<String>,       // Built from a hash set so they are unique
+    choices: Vec<String>,       // Build from the initial choice list (that's the name of the choice)
+    matrix:  Vec<Vec<usize>>,   // The vote matrix itself
+}
+
 // This is the poll result
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct PollResult {
@@ -234,7 +244,9 @@ pub struct PollResult {
     pub votes: Vec<String>,
     pub score: Vec<f32>,
     pub score_max: f32,
+    pub vote_matrix: Option<VoteMatrix>,
 }
+
 impl PollResult {
     fn error(name: &str, err: &str) -> PollResult {
         return PollResult { 
@@ -247,6 +259,7 @@ impl PollResult {
                 votes: Vec::new(),
                 score: Vec::new(),
                 score_max: 0f32,
+                vote_matrix: None,
             };
     }
 
@@ -398,6 +411,14 @@ impl PollResult {
             votes: votes.iter().map(|a| a.0.clone()).collect(),
             score: votes.iter().map(|a| a.1).collect(),
             score_max: score_max,
+            vote_matrix: match poll.options.as_ref().unwrap_or(&Default::default()).show_vote_matrix {
+                true => Some(VoteMatrix {
+                    voters: voters,
+                    choices: choices,
+                    matrix: vote_matrix.as_rows(),
+                }),
+                false => None
+            }, 
         }  
     }
 }

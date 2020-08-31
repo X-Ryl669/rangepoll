@@ -1,8 +1,17 @@
-use std::fs;
 use crate::rp_error::RPError;
 use crate::voters;
 use crate::poll;
+use crate::config;
 use std::collections::HashMap;
+extern crate lettre;
+
+use lettre::sendmail::SendmailTransport;
+use lettre::{ SendableEmail, Envelope, EmailAddress, SmtpClient };
+use lettre_email::Email;
+use lettre::smtp::authentication::{ Credentials, Mechanism };
+use lettre::smtp::ConnectionReuseParameters;
+use url::{ Url };
+
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VoterMap {
@@ -76,7 +85,7 @@ pub fn update_voter(actor: &str, action: &str, voter_name: &str, voter: Option<&
 
 }
 
-pub fn update_poll(actor: &str, action: &str, poll_filename: &str, poll: Option<&poll::Poll>) -> Result<bool, RPError> {
+pub fn update_poll(cfg: Option<&config::Config>, actor: &str, action: &str, poll_filename: &str, poll: Option<&poll::Poll>) -> Result<bool, RPError> {
     // Check if the current user is admin too
     let admin = get_admin(actor);
     let cur_user_is_admin = match admin.voters.iter().filter(|&x| x.username == actor).next() 
@@ -117,9 +126,87 @@ pub fn update_poll(actor: &str, action: &str, poll_filename: &str, poll: Option<
             Ok(poll::add_voter_in_poll(info[0], info[1]))
         },
         "sendemail" => {
-            Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotConnected, format!("{} not connected", action))))
+            if cfg.is_none() || cfg.unwrap().smtp_server.is_none() {
+                return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("No configuration for mail sending"))));
+            }
+            // Collect all emails for each voter and send them an email if valid
+            let tokens = poll::gen_voters_token(poll_filename)?;
+            return send_emails(cfg.unwrap(), admin, tokens);
         },
         _ => Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", action))))
     } 
+}
 
+fn send_email_impl<'a>(admin: &Admin, sender: &str, tokens: &Vec<poll::Token>, transport: &mut impl lettre::Transport::<'a> ) -> Result<bool, RPError> {
+    for token in tokens.iter() {
+        if !admin.inv_name.contains_key(&token.voter) {
+            println!("Failed to find a valid email for {}", token.voter);
+            continue;
+        }
+        
+        let voterMap = admin.inv_name.get(&token.voter).unwrap();
+
+        // Then format the email to send
+        let email = Email::builder()
+                        // Addresses can be specified by the tuple (email, alias)
+                        .to((&voterMap.email, &voterMap.fullname))
+                        // ... or by an address only
+                        .from(sender)
+                        .subject("Hi, Hello world")
+                        .alternative("<h2>Hi, Hello world.</h2>", "Hi, Hello world.")
+                        .build();
+
+        if email.is_err() {
+            return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("SMTP email error: {:?}", email.err()))));
+        }
+        
+        let result = transport.send(email.unwrap().into());
+/*        match result {
+            Ok(_) => { println!("Send email to {}", voterMap.email); },
+            Err(e) => { eprintln!("Failed to send email {}", e); },
+        }
+        */
+    }
+    return Ok(true);
+}
+
+pub fn send_emails(cfg: &config::Config, admin: Admin, tokens: Vec<poll::Token>) -> Result<bool, RPError> {
+    // Need to extract the sendmail configuration
+  //  let mut recipients = Vec::new();
+  //  let mut recipients_name = Vec::new();
+
+    let host_url = match Url::parse(&format!("http://{}", cfg.smtp_sender.as_ref().unwrap_or(&"bad".to_string()))){
+            Ok(u) => u,
+            Err(_) => Url::parse(&cfg.base_url).unwrap(),
+        };
+
+    let host = host_url.host_str().unwrap_or("localhost").to_string();
+    let no_reply_default = format!("no_reply@{}", host).clone();
+    let sender = cfg.smtp_sender.as_ref().unwrap_or(&no_reply_default);
+
+    // Either build a SMTP transport or use system's sendmail 
+    if cfg.smtp_server.as_ref().unwrap() == "sendmail" {
+        let mut transport = SendmailTransport::new();
+        return send_email_impl(&admin, &sender, &tokens, &mut transport);
+    } else
+    {
+        let mut mailer = match SmtpClient::new_simple(cfg.smtp_server.as_ref().unwrap()) { //&format!("{}:{}", cfg.smtp_server.as_ref().unwrap(), match cfg.smtp_port { Some(v) => v, None => 25u16 })) {
+            Ok(v) => v,
+            Err(e) => { eprintln!("{}", e); return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("SMTP client error: {}", e)))); },
+        };
+
+        // Enable SMTPUTF8 if the server supports it
+        mailer = mailer.smtp_utf8(true)
+                        // Configure expected authentication mechanism
+                        .authentication_mechanism(Mechanism::Plain)
+                        // Enable connection reuse
+                        .connection_reuse(ConnectionReuseParameters::ReuseUnlimited);
+        if cfg.smtp_username.is_some() {
+            mailer = mailer.credentials(Credentials::new(cfg.smtp_username.as_ref().unwrap().clone(), cfg.smtp_password.as_ref().unwrap_or(&"".to_string()).clone()));
+        }
+        let mut transport = mailer.transport();
+        let res = send_email_impl(&admin, &sender, &tokens, &mut transport);
+        transport.close();
+        return res;
+    };
 }

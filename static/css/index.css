@@ -622,17 +622,20 @@ a.noJS {
   font-weight: bold;
 }
 
-table.help, table.admin, div.admin {
+table.help, table.admin, table.voteMatrix, div.admin {
   margin: auto;
   border: 1px solid;
   border-collapse: collapse;
   width: max-content;
 }
-table.help thead tr, table.admin tr, div.admin div.tr, div.admin form.tr {
+table.help thead tr, table.voteMatrix thead tr, table.admin tr, div.admin div.tr, div.admin form.tr {
   border-bottom: 1px solid black;
 }
-table.help td {
+table.help td, table.voteMatrix td, table.voteMatrix th {
   padding: 0 2em;
+}
+table.voteMatrix tr th:first-child {
+  border-right: 1px solid black;
 }
 table.admin td, div.admin .td {
   padding: 0 0.2em;
@@ -788,4 +791,18 @@ div.admin ul li select {
 }
 div.admin option[default] {
   display: none;
+}
+.downHeader2 help + h3 {
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-top: 3.5em;
+  font-style: italic;
+}
+table.voteMatrix span.vote0::before {
+  content: "✘";
+  color: red;
+}
+table.voteMatrix span.vote1::before {
+  content: "✓";
+  color: green;
 }

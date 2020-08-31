@@ -21,7 +21,39 @@
       <li><progress max="50" value="{{score[loop.index0]*10 | round}}">{{ score[loop.index0] | round(precision=1) }}</progress><span>{{ vote }}</span><value data-max="{{score_max}}">{{ score[loop.index0] | round(precision=1) }}</value></li>
 {% endfor %}
     </ul>
+
+
     <help>Voting algorithm used is: {{ algorithm }} <a href="/public/html/voting_algorithm.html" class="noJS">?</a></help>
+{% if vote_matrix %}
+   <h3>Vote matrix</h3>
+   <table class="voteMatrix">
+   <thead>
+   <tr>
+   <th>Voter</th>
+    {% for choice in vote_matrix.choices %}
+      <th>{{ choice | title }}</th>
+    {% endfor %}
+   </tr>
+   </thead>
+   <tbody>
+    {% for voter in vote_matrix.voters %}
+      {% set voterIndex = loop.index0 %}
+      <tr><th>{{ voter | title }}</th>
+        {% for choice in vote_matrix.choices %}
+        <td>{% if algorithm == "Binary" %}
+          <span class="vote{{ vote_matrix.matrix[voterIndex][loop.index0] }}"></span>
+            {% else %}
+          {{ vote_matrix.matrix[voterIndex][loop.index0] }}
+            {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+   </tbody>
+   </table>
+{% endif %}
+
+
 {% endif %}
 </div>
 </form>

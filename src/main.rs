@@ -216,7 +216,14 @@ fn get_update_poll(voter: Voter, cfg: State<GlobalConfig>, action: String, filen
         ctx.insert("msg", "Admin page disabled in configuration");
         return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
     }
-    match admin::update_poll(&voter.name, &action, &filename, None)
+    // This is ugly. config.lock returns a MutexGuard (unless error) where we can only dereference it, but we want a reference on the underlying object
+    let cfgcfg = cfg.config.lock().unwrap();
+    let config = Some(&*cfgcfg);
+/*    let config: Option<&config::Config> = match cfg.config.lock() {
+        Ok(v) => Some(&*v),
+        Err(_) => None,
+    };*/
+    match admin::update_poll(config, &voter.name, &action, &filename, None)
     {
         Ok(_) => { return Ok(Redirect::to("/admin")); },
         Err(_e) =>
@@ -246,7 +253,7 @@ fn post_update_poll(voter: Voter, cfg: State<GlobalConfig>, new_poll: LenientFor
     
     let v = poll::Poll::new(new_poll.new_poll_name.clone(), None, None);
 
-    match admin::update_poll(&voter.name, "update", &new_poll.new_poll_filename, Some(&v))
+    match admin::update_poll(None, &voter.name, "update", &new_poll.new_poll_filename, Some(&v))
     {
         Ok(_) => { return Ok(Redirect::to("/admin")); },
         Err(_e) =>
