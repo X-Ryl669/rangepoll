@@ -102,7 +102,7 @@ pub fn update_poll(cfg: Option<&config::Config>, actor: &str, action: &str, poll
     {
         "delete" => Ok(poll::delete_poll(&poll_filename)),
         "edit" => {
-            Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotConnected, format!("{} not connected", action))))
+            return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not connected", action))));
         },
         "update" => {
             if poll.is_none() {

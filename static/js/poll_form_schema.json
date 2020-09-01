@@ -1,0 +1,305 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "title": "Edit poll information",
+    "description": "Please enter the information required below.",
+    "default": {},
+    "examples": [
+        {
+            "name": "Best fruit",
+            "filename": "example",
+            "description": "Choose your best fruit",
+            "allowed_participant": [
+                "John",
+                "Bob",
+                "Isaac",
+                "Arnaud",
+                "Cyril"
+            ],
+            "deadline_date": "2020-08-21 13:57:37",
+            "choices": [
+                {
+                    "name": "pear",
+                    "description": "A pear is good"
+                },
+                {
+                    "name": "apple",
+                    "description": "An apple a day..."
+                }
+            ],
+            "voting_algorithm": "bordat",
+            "options": {
+                "allow-missing-choice": true,
+                "allow-late-vote": true,
+                "show-only-complete-result": false,
+                "show-vote-matrix": true
+            }
+        }
+    ],
+    "required": [
+        "name",
+        "filename",
+        "description",
+        "allowed_participant",
+        "deadline_date",
+        "choices",
+        "voting_algorithm",
+        "options"
+    ],
+    "properties": {
+        "name": {
+            "$id": "#/properties/name",
+            "type": "string",
+            "title": "The poll name",
+            "description": "This is the name of the poll that's shown to your user.",
+            "default": "",
+            "examples": [
+                "Best fruit"
+            ]
+        },
+        "filename": {
+            "$id": "#/properties/filename",
+            "type": "string",
+            "title": "The YAML filename without any extension or path",
+            "description": "This is not stored in the poll YAML file, but used to store the file on the filesystem.",
+            "default": "",
+            "examples": [
+                "example"
+            ]
+        },
+        "description": {
+            "$id": "#/properties/description",
+            "type": "string",
+            "format": "markdown",
+            "title": "Poll's description",
+            "description": "A description of the poll.",
+            "default": "",
+            "examples": [
+                "Choose your best fruit"
+            ]
+        },
+        "allowed_participant": {
+            "$id": "#/properties/allowed_participant",
+            "type": "array",
+            "format": "table",
+            "uniqueItems": true,
+            "title": "The allowed voters",
+            "description": "Select the voters allowed to vote for this poll",
+            "default": [],
+            "examples": [
+                [
+                    "John",
+                    "Bob"
+                ]
+            ],
+            "additionalItems": true,
+            "items": {
+                "$id": "#/properties/allowed_participant/items",
+                "type": "string",
+                "title": "Voter's name",
+                "description": "The voter name",
+                "default": "",
+                "examples": [
+                    "John",
+                    "Bob"
+                ], 
+                "format": "select",
+                "enum": [
+                    "Isaac",
+                    "John",
+                    "Bob",
+                    "Cyril",
+                    "Arnaud"
+                    ],
+                "options": {
+                    "enum_titles": [
+                        "Isaac N",
+                        "John J",
+                        "Bob B",
+                        "Cyril C",
+                        "Arnaud B"
+                    ]
+                }
+            }
+        },
+        "deadline_date": {
+            "$id": "#/properties/deadline_date",
+            "type": "string",
+            "format": "datetime-local",
+            "title": "The poll voting deadline date",
+            "description": "The last valid date to allow voting for this poll.",
+            "default": "",
+            "examples": [
+                "2020-08-21 13:57:37"
+            ],
+            "options": {
+                "inputAttributes": {
+                  "placeholder": "Enter datetime"
+                },
+                "flatpickr": {
+                  "inlineHideInput": true,
+                  "inline": true,
+                  "time_24hr": true
+                }
+            }
+        },
+        "choices": {
+            "$id": "#/properties/choices",
+            "type": "array",
+            "title": "The possible choices for voters",
+            "description": "A list of choices voters will share their preference with.",
+            "default": [],
+            "examples": [
+                [
+                    {
+                        "name": "pear",
+                        "description": "A pear is good"
+                    },
+                    {
+                        "name": "apple",
+                        "description": "An apple a day..."
+                    }
+                ]
+            ],
+            "additionalItems": true,
+            "items": {
+                "$id": "#/properties/choices/items",
+                "type": "object",
+                "title": "Choice",
+                "description": "Please be as consise and precise as possible.",
+                "default": {},
+                "examples": [
+                    {
+                        "name": "pear",
+                        "description": "A pear is good"
+                    }
+                ],
+                "required": [
+                    "name",
+                    "description"
+                ],
+                "properties": {
+                    "name": {
+                        "$id": "#/properties/choices/items/anyOf/0/properties/name",
+                        "type": "string",
+                        "title": "The choice name (should be small and single word)",
+                        "description": "A shorthand for the choice name",
+                        "default": "",
+                        "examples": [
+                            "pear"
+                        ]
+                    },
+                    "description": {
+                        "$id": "#/properties/choices/items/anyOf/0/properties/description",
+                        "type": "string",
+                        "format": "markdown",
+                        "title": "The description of the choice",
+                        "description": "Enter a valid description for this choice.",
+                        "default": "",
+                        "examples": [
+                            "A pear is good"
+                        ]
+                    }
+                },
+                "additionalProperties": true
+            }
+        },
+        "voting_algorithm": {
+            "$id": "#/properties/voting_algorithm",
+            "type": "string",
+            "format": "select",
+            "title": "What voting algorithm to use for processing results",
+            "description": "See /public/html/voting_algorithm.html for an explaination of all allowed voting algorithms.",
+            "default": "max",
+            "examples": [
+                "bordat"
+            ],
+            "enum": [
+                "max",
+                "bordat",
+                "condorcet",
+                "binary",
+                "first-choice"
+              ],
+            "options": {
+                "enum_titles": [
+                    "Max",
+                    "Bordat",
+                    "Condorcet",
+                    "Binary",
+                    "First choice"
+                ]
+            }
+        },
+        "options": {
+            "$id": "#/properties/options",
+            "type": "object",
+            "title": "This poll options",
+            "description": "Customize your poll for specific behaviors.",
+            "default": {},
+            "examples": [
+                {
+                    "allow-missing-choice": true,
+                    "allow-late-vote": true,
+                    "show-only-complete-result": false,
+                    "show-vote-matrix": true
+                }
+            ],
+            "required": [
+                "allow-missing-choice",
+                "allow-late-vote",
+                "show-only-complete-result",
+                "show-vote-matrix"
+            ],
+            "properties": {
+                "allow-missing-choice": {
+                    "$id": "#/properties/options/properties/allow-missing-choice",
+                    "type": "boolean",
+                    "title": "Allow a missing choice",
+                    "description": "Allow a missing choice while voting (missing choices are given a value of 0).",
+                    "default": false,
+                    "format": "checkbox",
+                    "examples": [
+                        true
+                    ]
+                },
+                "allow-late-vote": {
+                    "$id": "#/properties/options/properties/allow-late-vote",
+                    "type": "boolean",
+                    "title": "Allow voting after deadline date",
+                    "description": "Accept a vote even if it happens after the deadline date",
+                    "default": false,
+                    "format": "checkbox",
+                    "examples": [
+                        true
+                    ]
+                },
+                "show-only-complete-result": {
+                    "$id": "#/properties/options/properties/show-only-complete-result",
+                    "type": "boolean",
+                    "title": "Only show complete results",
+                    "description": "Only show vote results if the voter is complete (all voters voted).",
+                    "default": false,
+                    "format": "checkbox",
+                    "examples": [
+                        false
+                    ]
+                },
+                "show-vote-matrix": {
+                    "$id": "#/properties/options/properties/show-vote-matrix",
+                    "type": "boolean",
+                    "title": "Show vote matrix",
+                    "description": "If enabled, the vote results will show the vote for each voter and their choices.",
+                    "default": false,
+                    "format": "checkbox",
+                    "examples": [
+                        true
+                    ]
+                }
+            },
+            "additionalProperties": true
+        }
+    },
+    "additionalProperties": true
+}

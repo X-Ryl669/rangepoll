@@ -22,9 +22,9 @@ pub struct Choice {
     #[serde(skip)]
     desc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    desc_markdown: Option<String>,
+    pub desc_markdown: Option<String>,
     vote: Vec<usize>,
     voter: Vec<String>,
 }
@@ -84,31 +84,6 @@ pub struct VotesForVoter {
     pub votes: HashMap<String, u32>,
 }
 
-/*
-impl VotingAlgorithm {
-    pub fn from_str(s: &str) -> Option<VotingAlgorithm> {
-        match s.to_ascii_lowercase().as_str() {
-            "bordat" => Some(VotingAlgorithm::Bordat),
-            "condorcet" => Some(VotingAlgorithm::Condorcet),
-            "first_choice" => Some(VotingAlgorithm::FirstChoice),
-            "french_system" => Some(VotingAlgorithm::FrenchSystem),
-            "successive_elimination" => Some(VotingAlgorithm::SuccessiveElimination),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match *self {
-            VotingAlgorithm::Bordat => "bordat",
-            VotingAlgorithm::Condorcet => "condorcet",
-            VotingAlgorithm::FirstChoice => "first_choice",
-            VotingAlgorithm::FrenchSystem => "french_system",
-            VotingAlgorithm::SuccessiveElimination => "successive_elimination",
-        }
-    }
-}
-*/
-
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct PollOptions {
     // Allow to skip a choice (in a vote)
@@ -141,15 +116,15 @@ pub struct Poll {
     desc: String,
     // Only either one is expected to be in the YAML file
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
     // Else, the markdown key is used as a file path that's read and then converted to HTML
     #[serde(skip_serializing_if = "Option::is_none")]
-    desc_markdown: Option<String>,
+    pub desc_markdown: Option<String>,
     allowed_participant: Vec<String>,
     
     #[serde(with = "date_serde")]
     deadline_date: DateTime<Utc>,
-    choices: Vec<Choice>,
+    pub choices: Vec<Choice>,
 
     // Any of Bordat / Condorcet / etc. (see VotingAlgorithm)
     #[serde(default)]

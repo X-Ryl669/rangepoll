@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+<!--
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/editron@6.0.0/dist/editron.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mithril/1.1.3/mithril.min.js"></script>
+<script src="/public/js/editron-modules.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/editron@6.0.0/dist/editron.js"></script> -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/css/jsoneditor.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@latest/dist/spectre.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@latest/dist/spectre-exp.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/public/js/njs.min.js"></script>
+<script src="/public/js/common.js"></script>
+<style>
+div[data-schematype="array"] {
+    border-top: 2px solid black;
+    margin-top: 2rem;
+    padding-top: 1rem;
+}
+div[data-schematype="object"] {
+    border-top: 2px solid black;
+    margin-bottom: 3rem;
+    padding-top: 0.5rem;
+}
+body { margin: 1rem; }
+</style>
+</head>
+<body>
+<div class="editor"></div>
+<button id="post">Save this poll</button>
+<script type="text/javascript">
+const htmlEscapes = {
+    '&': '&amp',
+    '<': '&lt',
+    '>': '&gt',
+    '"': '&quot',
+    "'": '&#39',
+};
+const reUnescapedHtml = /[&<>"']/g;
+const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+const escapeHtml = (string) => {
+    if (string && reHasUnescapedHtml.test(string)) {
+        return string.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
+    }
+    else {
+        return string;
+    }
+};
+const blockFn = (block) => block + '\n';
+const inlineFn = (text) => text;
+const newlineFn = () => '\n';
+const emptyFn = () => '';
+const renderer = {
+    // Block elements
+    code: blockFn,
+    blockquote: blockFn,
+    html: emptyFn,
+    heading: blockFn,
+    hr: emptyFn,
+    list: blockFn,
+    listitem: (text) => blockFn(text),
+    paragraph: blockFn,
+    table: (header, body) => blockFn(header) + blockFn(body),
+    tablerow: blockFn,
+    tablecell: blockFn,
+    // Inline elements
+    strong: inlineFn,
+    em: inlineFn,
+    codespan: inlineFn,
+    br: newlineFn,
+    del: inlineFn,
+    link: (_0, _1, text) => inlineFn(text),
+    image: (_0, _2, text) => inlineFn(text),
+    text: inlineFn,
+};
+function markdownToTxt(markdown, options = {
+    escapeHtml: true,
+    gfm: true,
+    pedantic: false,
+}) {
+    if (markdown) {
+        const unmarked = marked(markdown, {
+            gfm: options.gfm,
+            pedantic: options.pedantic,
+            renderer: renderer,
+        });
+        if (options.escapeHtml) {
+            return escapeHtml(unmarked);
+        }
+        return unmarked;
+    }
+    return '';
+}
+</script>
+<script type="text/javascript">
+    var poll = {{poll|safe}};
+    var voters = {{voters|safe}};
+    var editor = {};
+    var extracted = {};
+
+    function isLikelyMarkdown(txt) {
+        var conv = markdownToTxt(txt);
+        return conv.length < txt.length;
+    }
+
+    ajax("/public/js/poll_form_schema.json", loadEditor, ignore, {});
+    function loadEditor(data) {
+        var schema = JSON.parse(data);
+        // Fix possible participants here
+        schema.properties.allowed_participant.items.enum = Object.keys(voters);
+        schema.properties.allowed_participant.items.options.enum_titles = Object.keys(voters).map(k => voters[k].fullname)
+        // Fix poll information we don't allow editing
+        
+        if ("desc_markdown" in poll) {
+            extracted.desc_markdown = poll.desc_markdown;
+            delete poll.desc_markdown;
+        }
+        extracted.choices = poll.choices;
+        for (var i = 0; i < poll.choices.length; i++) {
+            if ("desc_markdown" in poll.choices[i]) {
+                delete poll.choices[i].desc_markdown;
+            }
+            if ("vote" in poll.choices[i]) {
+                delete poll.choices[i].vote;
+            }
+            if ("voter" in poll.choices[i]) {
+                delete poll.choices[i].voter;
+            }
+        }
+
+        editor = new JSONEditor($('.editor').a[0], { 
+            disable_edit_json: true, 
+            disable_collapse: true, 
+            disable_properties: true,
+            disable_array_reorder: true, 
+            no_additional_properties: true,
+            schema: schema, startval: poll, 
+            theme: "spectre", iconlib: "fontawesome4" });
+/*
+        const { Controller } = window.editron;
+        const controller = new Controller(schema, poll);
+        controller.createEditor("#", document.querySelector(".editor"));
+*/
+        // get the generated data with
+        //const prevdata = controller.getData(); // { title: "" }
+        // change data
+        //controller.setData(poll);
+    }
+    $('#post').on('click', function(e) {
+        // Need to restore extracted value if it makes sense
+        var newPoll = editor.getValue();
+        if (isLikelyMarkdown(newPoll.description)) {
+            newPoll.desc_markdown = newPoll.description;
+            delete newPoll.description;
+        }
+
+    });
+</script>
+</body>
+</html>

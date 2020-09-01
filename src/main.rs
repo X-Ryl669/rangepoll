@@ -15,6 +15,7 @@ use rocket::config::{ Config, Environment };
 use rocket::State;
 use rocket::response::status::Custom;
 use std::sync::Mutex;
+use std::fs;
 
 // Let authentication be checked with Request Guard
 use rocket::request::{ self, Request, FromRequest };
@@ -225,6 +226,10 @@ fn get_update_poll(voter: Voter, cfg: State<GlobalConfig>, action: String, filen
         Ok(_) => { return Ok(Redirect::to("/admin")); },
         Err(_e) =>
         {
+            // Hack here, for "edit" action
+            if action == "edit" {
+                return Ok(Redirect::to(format!("/edit/{}", filename)));
+            }
             let mut ctx = HashMap::new();
             ctx.insert("msg", "Action not allowed");
             return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
@@ -260,6 +265,57 @@ fn post_update_poll(voter: Voter, cfg: State<GlobalConfig>, new_poll: LenientFor
             return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
         }
     }
+}
+
+#[get("/edit/<pollname>", rank=1)]
+fn get_edit_poll(voter: Voter, cfg: State<GlobalConfig>, pollname: String) -> Result< Redirect, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin  {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+    let admin = admin::get_admin(&voter.name);
+    let cur_user_is_admin = match admin.voters.iter().filter(|&x| x.username == voter.name).next() 
+        {
+            Some(v) => v.admin,
+            None => false
+        };
+    if !cur_user_is_admin {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Action not allowed");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+
+    let mut poll = match poll::find_poll_desc(&pollname) {
+        Ok(v) => v,
+        Err(_) => { return Ok(Redirect::to("/admin")); }
+    };
+
+    // Fix any markdown we could have in the poll to include the markdown content itself
+    if poll.desc_markdown.is_some() {
+        poll.description = Some(fs::read_to_string(format!("polls/{}", poll.desc_markdown.as_ref().unwrap())).unwrap_or_default().clone());
+    }
+    for mut choice in poll.choices.iter_mut() {
+        if choice.desc_markdown.is_some() {
+            choice.description = Some(fs::read_to_string(format!("polls/{}", choice.desc_markdown.as_ref().unwrap())).unwrap_or_default().clone());
+        }
+    }
+
+    // We need to convert the poll to JSON first since the editor only accept JSON
+    let mut ctx = HashMap::new();
+    ctx.insert("poll", serde_json::to_string(&poll).unwrap_or("{}".to_string()));
+    ctx.insert("filename", pollname);
+    ctx.insert("voters", serde_json::to_string(&admin.inv_name).unwrap_or("{}".to_string()));
+    return Err(Custom(Status::Ok, Template::render("edit", &ctx)));
+}
+#[get("/edit/<_param..>", rank=2)]
+fn get_edit_poll_not_logged(_param: PathBuf) -> Custom<Template> {
+    Custom(Status::Unauthorized, Template::render("forbidden", vec![ ("dest", "/") ].into_iter().collect::<HashMap<&str, &str>>()))
 }
 
 
@@ -557,11 +613,11 @@ fn main() {
      // Asynchronous application
      .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, 
                          get_user_menu, get_admin, get_update_voter, post_update_voter,
-                         get_update_poll, post_update_poll/*, edit_poll*/])
+                         get_update_poll, post_update_poll, get_edit_poll])
      // Not logged in async routes
      .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, 
                          get_user_menu_not_logged, get_admin_not_logged, get_update_voter_not_logged,
-                         get_update_poll_not_logged])
+                         get_update_poll_not_logged, get_edit_poll_not_logged])
 
      // Static below
      .mount("/", routes![static_files])
