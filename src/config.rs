@@ -19,6 +19,8 @@ pub struct Config {
     pub smtp_password: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub smtp_sender: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub smtp_invite_subject: Option<String>,
 }
 
 impl Config {
@@ -34,6 +36,7 @@ impl Config {
                 smtp_username: None,
                 smtp_password: None,
                 smtp_sender: Some("no_reply@localhost".to_string()),
+                smtp_invite_subject: Some("Invitation for voting".to_string())
             }
     }
 }

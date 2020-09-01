@@ -219,10 +219,7 @@ fn get_update_poll(voter: Voter, cfg: State<GlobalConfig>, action: String, filen
     // This is ugly. config.lock returns a MutexGuard (unless error) where we can only dereference it, but we want a reference on the underlying object
     let cfgcfg = cfg.config.lock().unwrap();
     let config = Some(&*cfgcfg);
-/*    let config: Option<&config::Config> = match cfg.config.lock() {
-        Ok(v) => Some(&*v),
-        Err(_) => None,
-    };*/
+
     match admin::update_poll(config, &voter.name, &action, &filename, None)
     {
         Ok(_) => { return Ok(Redirect::to("/admin")); },

@@ -480,11 +480,15 @@ div.voteList > h1:first-child {
 #votes {
     margin: 2em auto;
 }
-.downHeader2 button { background: #fff2ca; height: 4rem; }
+.downHeader2 button { background: #CCDCEA; height: 4rem; }
 .downHeader2 button:hover {
-    background: #FFF8E0;
+    background: #C1D7EA;
     box-shadow: 0 0 5px #888;
-    color: #008;
+    color: #000;
+}
+.downHeader2 button::after {
+  content: "➤➤";
+  margin-left: 1em;
 }
 .voteList.notActive {
     background: #DDD;
