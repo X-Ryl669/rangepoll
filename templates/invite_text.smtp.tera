@@ -1,0 +1,16 @@
+Hi {{ fullname | title }},
+
+{% if inviter %}
+  {{ inviter | title }} invites you to vote for: {{ pollname }}.
+{% else %} 
+  We are glad to invite you for voting for: {{ pollname }}.
+{% endif %}
+The deadline date for voting is: {{ deadline }}.
+
+The subject of this poll is:
+{{ polldesc | safe | striptags }}
+
+Voting is easy, fast and... fun!
+You'll need to click this link and share your preferences for the proposed choices:
+
+{{ link }}
