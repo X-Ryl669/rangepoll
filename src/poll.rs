@@ -18,7 +18,7 @@ pub const DEADLINE_FORMAT: &'static str = "%Y-%m-%d";
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Choice {
-    name: String,
+    pub name: String,
     #[serde(skip)]
     desc: String,
     #[serde(skip_serializing_if = "Option::is_none")]

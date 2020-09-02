@@ -1,12 +1,6 @@
 <!doctype html>
 <html>
 <head>
-<!--
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/editron@6.0.0/dist/editron.css" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mithril/1.1.3/mithril.min.js"></script>
-<script src="/public/js/editron-modules.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/editron@6.0.0/dist/editron.js"></script> -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/css/jsoneditor.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@latest/dist/spectre.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@latest/dist/spectre-exp.min.css">
@@ -50,9 +44,7 @@ const escapeHtml = (string) => {
     if (string && reHasUnescapedHtml.test(string)) {
         return string.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
     }
-    else {
-        return string;
-    }
+    return string;
 };
 const blockFn = (block) => block + '\n';
 const inlineFn = (text) => text;
@@ -92,9 +84,7 @@ function markdownToTxt(markdown, options = {
             pedantic: options.pedantic,
             renderer: renderer,
         });
-        if (options.escapeHtml) {
-            return escapeHtml(unmarked);
-        }
+        if (options.escapeHtml) return escapeHtml(unmarked);
         return unmarked;
     }
     return '';
@@ -111,6 +101,15 @@ function markdownToTxt(markdown, options = {
         return conv.length < txt.length;
     }
 
+    function redirect() {
+        window.location = "/admin";
+    }
+
+    function errorPosting(e) {
+        alert('Failed to post form: '+ e);
+    }
+
+
     ajax("/public/js/poll_form_schema.json", loadEditor, ignore, {});
     function loadEditor(data) {
         var schema = JSON.parse(data);
@@ -123,15 +122,17 @@ function markdownToTxt(markdown, options = {
             extracted.desc_markdown = poll.desc_markdown;
             delete poll.desc_markdown;
         }
-        extracted.choices = poll.choices;
+        extracted.choices = new Array(poll.choices.length);
         for (var i = 0; i < poll.choices.length; i++) {
             if ("desc_markdown" in poll.choices[i]) {
                 delete poll.choices[i].desc_markdown;
             }
             if ("vote" in poll.choices[i]) {
+                extracted.choices[i] = { vote: poll.choices[i].vote.slice(0) };
                 delete poll.choices[i].vote;
             }
             if ("voter" in poll.choices[i]) {
+                extracted.choices[i].voter = poll.choices[i].voter.slice(0);
                 delete poll.choices[i].voter;
             }
         }
@@ -144,24 +145,33 @@ function markdownToTxt(markdown, options = {
             no_additional_properties: true,
             schema: schema, startval: poll, 
             theme: "spectre", iconlib: "fontawesome4" });
-/*
-        const { Controller } = window.editron;
-        const controller = new Controller(schema, poll);
-        controller.createEditor("#", document.querySelector(".editor"));
-*/
-        // get the generated data with
-        //const prevdata = controller.getData(); // { title: "" }
-        // change data
-        //controller.setData(poll);
     }
     $('#post').on('click', function(e) {
         // Need to restore extracted value if it makes sense
         var newPoll = editor.getValue();
-        if (isLikelyMarkdown(newPoll.description)) {
+        if ("description" in newPoll && isLikelyMarkdown(newPoll.description)) {
             newPoll.desc_markdown = newPoll.description;
             delete newPoll.description;
         }
+        // Then fix choices & votes
+        if (newPoll.choices.length >= extracted.choices.length) {
+            // Need to restore votes 
+            for (var i = 0; i < extracted.choices.length; i++) {
+                newPoll.choices[i].vote = extracted.choices[i].vote;
+                newPoll.choices[i].voter = extracted.choices[i].voter;
+            }
+        }
 
+        for (var i = 0; i < newPoll.choices.length; i++) {
+            if ("description" in newPoll.choices[i] && isLikelyMarkdown(newPoll.choices[i].description)) {
+                newPoll.choices[i].desc_markdown = newPoll.choices[i].description;
+                delete newPoll.choices[i].description;
+            }
+        }
+
+        // Ok, should be ok to send for saving
+        var formData = `new_poll_filename=${encodeURIComponent(newPoll.filename)}&new_poll_name=${encodeURIComponent(JSON.stringify(newPoll))}`;
+        ajax('/edit', redirect, errorPosting, { method: 'POST', formData: formData });
     });
 </script>
 </body>

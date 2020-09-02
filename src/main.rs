@@ -313,6 +313,65 @@ fn get_edit_poll(voter: Voter, cfg: State<GlobalConfig>, pollname: String) -> Re
     ctx.insert("voters", serde_json::to_string(&admin.inv_name).unwrap_or("{}".to_string()));
     return Err(Custom(Status::Ok, Template::render("edit", &ctx)));
 }
+#[post("/edit", data="<new_poll>")]
+fn post_edit_poll(voter: Voter, cfg: State<GlobalConfig>, new_poll: LenientForm<UpdatePoll>) -> Result< Redirect, Custom<Template> > {
+    // Check if the user is an admin and if we're allowed to go to the admin page
+    let allow_admin = match cfg.config.lock() {
+        Ok(v) => v.enable_admin,
+        Err(_) => false,
+    };
+    if !allow_admin {
+        let mut ctx = HashMap::new();
+        ctx.insert("msg", "Admin page disabled in configuration");
+        return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+    }
+
+    let mut poll : poll::Poll = match serde_json::from_str(&new_poll.new_poll_name) {
+        Ok(v) => v,
+        Err(_e) => {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Invalid data, please check your inputs");
+            return Err(Custom(Status::Unauthorized, Template::render("error/401", ctx)));
+        }
+    };
+
+    // Need to fix any markdown found if any here since it can't be saved in YAML 
+    if poll.desc_markdown.is_some() {
+        let md_file = format!("polls/{}.md", &new_poll.new_poll_filename);
+        if fs::write(&md_file, poll.desc_markdown.as_ref().unwrap()).is_err() {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Writing poll failed");
+            return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+        }
+        // Ok, remember the file path here
+        poll.desc_markdown = Some(format!("{}.md", &new_poll.new_poll_filename));
+    }
+    // Do the same for choices markdown if found
+    for mut choice in poll.choices.iter_mut() {
+        if choice.desc_markdown.is_some() {
+            let md_file = format!("polls/{}_{}.md", &new_poll.new_poll_filename, &choice.name);
+            if fs::write(&md_file, choice.desc_markdown.as_ref().unwrap()).is_err() {
+                let mut ctx = HashMap::new();
+                ctx.insert("msg", "Writing poll choice failed");
+                return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+            }
+            // Ok, remember the file path here
+            choice.desc_markdown = Some(format!("{}_{}.md", &new_poll.new_poll_filename, &choice.name));
+        }
+    }
+
+    // Ok, should be able to save the poll now
+    match admin::update_poll(None, &voter.name, "update", &new_poll.new_poll_filename, Some(&poll))
+    {
+        Ok(_) => { return Ok(Redirect::to("/admin")); },
+        Err(_e) =>
+        {
+            let mut ctx = HashMap::new();
+            ctx.insert("msg", "Action not allowed");
+            return Err(Custom(Status::MethodNotAllowed, Template::render("error/421", ctx)));
+        }
+    }
+}
 #[get("/edit/<_param..>", rank=2)]
 fn get_edit_poll_not_logged(_param: PathBuf) -> Custom<Template> {
     Custom(Status::Unauthorized, Template::render("forbidden", vec![ ("dest", "/") ].into_iter().collect::<HashMap<&str, &str>>()))
@@ -613,7 +672,7 @@ fn main() {
      // Asynchronous application
      .mount("/", routes![poll_list, vote_for, post_vote_for, vote_results, menu, 
                          get_user_menu, get_admin, get_update_voter, post_update_voter,
-                         get_update_poll, post_update_poll, get_edit_poll])
+                         get_update_poll, post_update_poll, get_edit_poll, post_edit_poll])
      // Not logged in async routes
      .mount("/", routes![poll_list_not_logged, vote_for_not_logged, vote_results_not_logged, menu_not_logged, 
                          get_user_menu_not_logged, get_admin_not_logged, get_update_voter_not_logged,

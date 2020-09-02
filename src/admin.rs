@@ -7,7 +7,7 @@ extern crate lettre;
 
 
 use lettre::sendmail::SendmailTransport;
-use lettre::{ SendableEmail, Envelope, EmailAddress, SmtpClient };
+use lettre::SmtpClient;
 use lettre_email::Email;
 use lettre::smtp::authentication::{ Credentials, Mechanism };
 use lettre::smtp::ConnectionReuseParameters;
