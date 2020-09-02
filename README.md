@@ -1,12 +1,15 @@
 ![Rangepoll](./logo.png?raw=true)
 
 # Rangepoll
-## A web server for voting a poll
+## A web server for voting a poll democratically
 
-Poll can have with multiple choices with scoring.
+Polls can have with multiple choices with scoring.
+
 Decision algorithm is dynamic and configurable.
 
-[Demo](http://rangepoll.herokuapp.com/) login with cyril:cyril
+[Demo](http://rangepoll.herokuapp.com/) 
+
+*Log in with cyril:cyril*
 
 
 ## Why?
@@ -14,7 +17,7 @@ Decision algorithm is dynamic and configurable.
 When you are in a process of taking important decisions with multiple people, you often want them to express, order, and/or validate their preferences.
 
 
-This software allows to create and run a poll with all the possible choices and let users express their agreement for each of them with a 5-star score or a binary Yes/No system. 
+This software allows to create and run a poll with all the possible choices and let users express their agreement for each of them with a 5-stars score or a binary Yes/No system. 
 
 Poll can have a deadline too.
 
@@ -125,6 +128,11 @@ choices:
       - X
       - Y
       - Z
+options:
+  allow-missing-choice: false # Allow user not to vote for a choice
+  allow-late-vote: false # Allow voting after deadline
+  show-only-complete-result: false # Only show voting result when all voters have voted
+  show-vote-matrix: false # Show the voting matrix (each voter's vote) in results
 ```
 Voting algorithms are described in the `voting_algorithm.html` file
 
@@ -140,9 +148,7 @@ I'm following the [Pareto principle](https://en.wikipedia.org/wiki/Pareto_princi
 
 Currently, the software is usable for end-users (voting is working and is a nice UX).
 
-In the future, I'll probably add an admin page to let users change their password (and some security for them instead of storing them in cleartext), and add/delete other users.
-
-Also, I might add a Poll editor (instead of having to deal with a YAML file) since it's not very *non-tech savvy* friendly.
+In the future, I'll probably add some mechanism for users to change their password (and some security for them instead of storing them in cleartext). Currently, only administrators user can do that. 
 
 ## Disclaimer
 This is my first Rust software. Please be lenient with the code and feel free to report any mistake I've made in the issue tabs.

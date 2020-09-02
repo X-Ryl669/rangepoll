@@ -573,6 +573,7 @@ fn main() {
     let mut host;
     let scheme;
     let cfg = GlobalConfig { config: Mutex::new(config::Config::new()) };
+    let mut had_base_url = false;
 
     let cmd_args = App::new("rangepoll")
                         .version("0.1.0")
@@ -603,7 +604,7 @@ fn main() {
             }
         };
         let host_url = match Url::parse(config.base_url.as_str()) {
-            Ok(u) => u,
+            Ok(u) => { had_base_url = true; u },
             Err(e) => { eprintln!("Invalid base URL in config: {}", e); return; }
         };
 
@@ -618,11 +619,13 @@ fn main() {
     if let Some(o) = cmd_args.value_of("host") {
         host = o.to_string();
     }
-    {
+    // Only rewrite the base url if none was found in the config initially and some is specified on the command line
+    // That's because one might want to let the server live behind a reverse proxy
+    // so the base url in the configuration is the public address, and the private address is specified via command line
+    if cmd_args.value_of("host").is_some() && !had_base_url {
         let mut config = cfg.config.lock().unwrap();
         config.base_url = format!("{}://{}:{}", scheme, host, port).to_string();
     }
-
 
     if let Some(o) = cmd_args.value_of("poll") {
         poll::gen_template(o);
