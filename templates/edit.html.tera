@@ -34,12 +34,13 @@ body { margin: 1rem; }
 const blockFn = (block) => block + '\n';
 const inlineFn = (text) => text;
 const newlineFn = () => '\n';
+const htmlEscapeFn = (text) => new DOMParser().parseFromString(text, 'text/html').body.textContent;
 const emptyFn = () => '';
 const renderer = {
     // Block elements
     code: blockFn,
     blockquote: blockFn,
-    html: (text) => new DOMParser().parseFromString(text, 'text/html').body.textContent,
+    html: htmlEscapeFn,
     heading: blockFn,
     hr: emptyFn,
     list: blockFn,
@@ -56,7 +57,7 @@ const renderer = {
     del: inlineFn,
     link: (_0, _1, text) => inlineFn(text),
     image: (_0, _2, text) => inlineFn(text),
-    text: inlineFn,
+    text: htmlEscapeFn,
 };
 function markdownToTxt(markdown, options = {
     gfm: true,

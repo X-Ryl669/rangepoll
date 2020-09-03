@@ -25,7 +25,9 @@ pub struct Choice {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub desc_markdown: Option<String>,
+    #[serde(default)]
     vote: Vec<usize>,
+    #[serde(default)]
     voter: Vec<String>,
 }
 
@@ -407,6 +409,7 @@ mod date_serde {
     use serde::{self, Deserialize, Serializer, Deserializer};
 
     pub const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+    pub const JS_FORMAT: &'static str = "%Y-%m-%d %H:%M";
 
     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer,
     {
@@ -417,7 +420,10 @@ mod date_serde {
     pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error> where D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Utc.datetime_from_str(&s, FORMAT).map_err(serde::de::Error::custom)
+        match Utc.datetime_from_str(&s, FORMAT) {
+            Ok(v) => Ok(v),
+            Err(_) => Utc.datetime_from_str(&s, JS_FORMAT).map_err(serde::de::Error::custom)
+        }
     }
 }
 

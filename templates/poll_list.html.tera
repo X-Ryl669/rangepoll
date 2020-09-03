@@ -4,14 +4,15 @@
   <div class="pollList downHeader">
     <h1>{{poll.name}}</h1>
     <div>{{poll.desc | safe}}</div>
-{% if not poll.complete %} 
-  {% if not poll.deadline_passed or poll.option.allow-late-vote %}
+{% if not poll.deadline_passed or poll.option.allow-late-vote %}
     <a class="loadVote" href="/vote_for/{{poll.filepath}}">Select this poll to vote</a>
-  {% endif %}
 {% endif %}
-{% set comp = poll.option.show-only-complete-result and poll.option.complete %}
-{% if poll.deadline_passed or comp %}
+{% if poll.deadline_passed %}
+  {% set comp = poll.option.show-only-complete-result and poll.complete %}
+  {% set orcomp = not poll.option.show-only-complete-result %}
+  {% if comp or orcomp %}
     <a class="voteResult" href="/vote_results/{{poll.filepath}}">Consult poll results</a>
+  {% endif %}
 {% endif %}
     <deadline class="{% if poll.deadline_near %}passed{% endif %}">Deadline<br/>{{poll.deadline_date}}</deadline>
   </div>
