@@ -328,9 +328,9 @@ fn post_edit_poll(voter: Voter, cfg: State<GlobalConfig>, new_poll: LenientForm<
 
     let mut poll : poll::Poll = match serde_json::from_str(&new_poll.new_poll_name) {
         Ok(v) => v,
-        Err(_e) => {
+        Err(e) => {
             let mut ctx = HashMap::new();
-            ctx.insert("msg", "Invalid data, please check your inputs");
+            ctx.insert("msg", format!("Invalid data, please check your inputs: {}", e));
             return Err(Custom(Status::Unauthorized, Template::render("error/401", ctx)));
         }
     };
