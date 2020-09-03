@@ -1,0 +1,29 @@
+[Unit]
+Description=Rangepoll server
+Documentation=https://github.com/X-Ryl669/rangepoll
+After=network.target
+
+[Service]
+# The user/group rangepoll is run under. the working directory (see below) should allow write and read access to this user/group
+User=rangepoll
+Group=rangepoll
+# The location of the compiled binary
+ExecStart=/var/lib/rangepoll/rangepoll -a 127.0.0.1 -p 3001
+# Set reasonable connection and process limits
+LimitNOFILE=1048576
+LimitNPROC=64
+# Isolate bitwarden_rs from the rest of the system
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+# Only allow writes to the following directory and set it to the working directory (user and password data are stored here)
+WorkingDirectory=/var/lib/rangepoll
+ReadWriteDirectories=/var/lib/rangepoll
+# Allow rangepoll to bind ports in the range of 0-1024 if you changed the port above to less than 1024
+# AmbientCapabilities=CAP_NET_BIND_SERVICE
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
