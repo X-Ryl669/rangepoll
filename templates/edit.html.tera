@@ -31,21 +31,6 @@ body { margin: 1rem; }
 <div class="editor"></div>
 <button id="post">Save this poll</button>
 <script type="text/javascript">
-const htmlEscapes = {
-    '&': '&amp',
-    '<': '&lt',
-    '>': '&gt',
-    '"': '&quot',
-    "'": '&#39',
-};
-const reUnescapedHtml = /[&<>"']/g;
-const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
-const escapeHtml = (string) => {
-    if (string && reHasUnescapedHtml.test(string)) {
-        return string.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
-    }
-    return string;
-};
 const blockFn = (block) => block + '\n';
 const inlineFn = (text) => text;
 const newlineFn = () => '\n';
@@ -54,7 +39,7 @@ const renderer = {
     // Block elements
     code: blockFn,
     blockquote: blockFn,
-    html: emptyFn,
+    html: (text) => new DOMParser().parseFromString(text, 'text/html').body.textContent,
     heading: blockFn,
     hr: emptyFn,
     list: blockFn,
@@ -74,7 +59,6 @@ const renderer = {
     text: inlineFn,
 };
 function markdownToTxt(markdown, options = {
-    escapeHtml: true,
     gfm: true,
     pedantic: false,
 }) {
@@ -84,7 +68,6 @@ function markdownToTxt(markdown, options = {
             pedantic: options.pedantic,
             renderer: renderer,
         });
-        if (options.escapeHtml) return escapeHtml(unmarked);
         return unmarked;
     }
     return '';
