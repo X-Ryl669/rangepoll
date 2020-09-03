@@ -576,8 +576,8 @@ fn main() {
     let mut had_base_url = false;
 
     let cmd_args = App::new("rangepoll")
-                        .version("0.1.0")
-                        .author("Cyril R. <boite.pour.spam@gmail.com>")
+                        .version("0.8.0")
+                        .author("X-Ryl669 <boite.pour.spam@gmail.com>")
                         .about("A voting server to run poll with weighted choices and collecting results")
                         .arg(Arg::with_name("port")
                                .short("p")

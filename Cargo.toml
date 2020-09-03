@@ -1,7 +1,7 @@
 [package]
 name = "rangepoll"
-version = "0.1.0"
-authors = ["Cyril Russo <cyril.russo@nexvision.fr>"]
+version = "0.8.0"
+authors = ["X-Ryl669 <boite.pour.spam@gmail.com>"]
 edition = "2018"
 publish = false
 

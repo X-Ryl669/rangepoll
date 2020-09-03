@@ -24,6 +24,14 @@ Poll can have a deadline too.
 ## Install
 
 This software requires [Rust](https://www.rust-lang.org/tools/install) and so make sure you've installed the Nightly version.
+In case of doubt, you'll need to run:
+```
+$ rustup update
+$ rustup default nightly
+$ # If you need stable rust later on, just run: 
+$ # rustup default stable 
+$ # after this is built
+```
 
 Once it's done, simply run:
 ```
