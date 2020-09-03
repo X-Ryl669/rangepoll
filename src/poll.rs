@@ -386,7 +386,7 @@ impl PollResult {
             user: "".to_string(),
             algorithm: format!("{:?}", poll.voting_algorithm),
             votes: votes.iter().map(|a| a.0.clone()).collect(),
-            score: votes.iter().map(|a| a.1).collect(),
+            score: votes.iter().map(|a| if a.1.is_nan() { 0f32 } else { a.1 }).collect(),
             score_max: score_max,
             vote_matrix: match poll.options.as_ref().unwrap_or(&Default::default()).show_vote_matrix {
                 true => Some(VoteMatrix {
