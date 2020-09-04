@@ -306,12 +306,12 @@ ul.form button:hover {
     max-width: 100vw;
     margin: 1.2rem auto;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr) );
+    grid-template-columns: 1fr;
     grid-auto-rows: 1fr;
-    grid-column-gap: 30px;
-    grid-row-gap: 30px;
+    grid-column-gap: 10px;
+    grid-row-gap: 20px;
     background: #94A9BB;
-    padding: 1em;
+    padding: 0.5em;
     border-radius: 10px;
     box-shadow: 0 0 5px inset;
 }
@@ -321,9 +321,21 @@ ul.form button:hover {
     border-radius: 10px;
     -webkit-box-shadow: 0 -5px 3px rgba(0,0,0,0.1) inset,0 3px 3px rgba(0,0,0,0.2);
     box-shadow: 0 -5px 3px rgba(0,0,0,0.1) inset,0 3px 3px rgba(0,0,0,0.2);
-    padding: 30px;
+    padding: 30px 0.5rem;
     position: relative;
     overflow: hidden;
+}
+@media screen and (min-width: 48rem) {
+  #polls, #votes {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr) );
+    grid-auto-rows: 1fr;
+    grid-column-gap: 30px;
+    grid-row-gap: 30px;
+    padding: 1em;
+  }
+  .pollList, .voteList {
+    padding: 30px;
+  }
 }
 .pollList deadline {
     position: absolute;
@@ -352,7 +364,7 @@ ul.form button:hover {
 
 .downHeader h3, .downHeader2 h2 {
   font-size: 1.2rem;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .downHeader h4, .downHeader2 h3 {
@@ -378,7 +390,7 @@ ul.form button:hover {
 .downHeader2 ul, .downHeader2 ol {
   margin-left: 2.5rem;
   margin-bottom: 1rem;
-  color: #777;
+  color: #444;
 }
 .downHeader2 {
   text-align: justify;
