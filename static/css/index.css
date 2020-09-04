@@ -161,7 +161,7 @@ logo:after {
   }
   
   p {
-    color: #777;
+    color: #000;
   }
 
 body { padding: 1em; }
@@ -345,12 +345,14 @@ ul.form button:hover {
 }
 
 .downHeader h2, .downHeader2 h1 {
-  font-size: 1.121rem;
+  font-size: 1.4rem;
   white-space: nowrap;
+  font-weight: 400;
 }
 
 .downHeader h3, .downHeader2 h2 {
-  font-size: 0.88rem;
+  font-size: 1.2rem;
+  font-weight: 300;
 }
 
 .downHeader h4, .downHeader2 h3 {
@@ -371,6 +373,15 @@ ul.form button:hover {
 }
 .downHeader2 > h1 {
     font-size: 2.6em;
+}
+
+.downHeader2 ul, .downHeader2 ol {
+  margin-left: 2.5rem;
+  margin-bottom: 1rem;
+  color: #777;
+}
+.downHeader2 {
+  text-align: justify;
 }
 
 [data-href] {
@@ -470,8 +481,17 @@ div.rating {
     margin: auto;
 }
 div.voteList > h1:first-child {
-    font-size: 1.4rem;
-    font-weight: 400;
+    font-size: 1.8rem;
+    font-weight: 900;
+    text-align: center;
+    text-shadow: 2px 2px #800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    -webkit-text-stroke-width: 1px;
+    -moz-text-stroke-width: 1px;
+    -webkit-text-stroke-color: #000;
+    -moz-text-stroke-color: #000;
+    color: #FEE;
 }
 .descVote {
     text-align: left;
