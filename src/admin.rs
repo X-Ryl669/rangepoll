@@ -132,7 +132,7 @@ pub fn update_poll(cfg: Option<&config::Config>, actor: &str, action: &str, poll
             }
             // Collect all emails for each voter and send them an email if valid
             let tokens = poll::gen_voters_token(poll_filename)?;
-            let poll_desc = poll::get_poll_desc(poll_filename)?;
+            let poll_desc = poll::get_poll_desc(poll_filename, true)?;
             return send_emails(cfg.unwrap(), admin, tokens, &poll_desc);
         },
         _ => Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", action))))

@@ -491,7 +491,7 @@ fn poll_list_not_logged() -> Flash<Redirect> {
 #[get("/vote_for/<poll>", rank=1)]
 fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     // Need to extract all available polls
-    let mut ppoll = match poll::get_poll_desc(&poll) {
+    let mut ppoll = match poll::get_poll_desc(&poll, false) {
         Ok(v) => v,
         Err(_) => { 
             let mut ctx = HashMap::new();
@@ -654,7 +654,7 @@ fn main() {
 
     let host_interface = host.parse::<IpAddr>().unwrap_or("0.0.0.0".parse::<IpAddr>().unwrap());
 
-    println!("Configuration used: {:?}", cfg.config.lock().unwrap());
+    println!("Configuration used:\n{}", cfg.config.lock().unwrap().dump());
 
     let config = Config::build(Environment::Staging)
                         .address(host_interface.to_string())

@@ -40,10 +40,10 @@ pub struct ParsedChoice {
     pub voter: Vec<String>,
 }
 impl ParsedChoice {
-    fn new(choice: Choice, path: &Path) -> Result<ParsedChoice, RPError> {
+    fn new(choice: Choice, path: &Path, summary: bool) -> Result<ParsedChoice, RPError> {
         Ok(ParsedChoice { 
             name: choice.name.clone(),
-            desc: build_desc(&choice.description, &choice.desc_markdown, path)?,
+            desc: build_desc(&choice.description, &choice.desc_markdown, path, summary)?,
             vote: choice.vote.clone(),
             voter: choice.voter.clone(),
         })
@@ -427,13 +427,17 @@ mod date_serde {
     }
 }
 
-pub fn build_desc(description: &Option<String>, desc_markdown: &Option<String>, path: &Path) -> Result<String, RPError> {
+pub fn build_desc(description: &Option<String>, desc_markdown: &Option<String>, path: &Path, summary: bool) -> Result<String, RPError> {
     if description.is_none() && desc_markdown.is_none() {
         Ok(path.to_str().unwrap().to_string())
     } else if description.is_none() && desc_markdown.is_some() {
         // Read the given file and convert to HTML here
         let rel_path_to_md_file = path.with_file_name(desc_markdown.as_ref().unwrap().clone());
-        let md_content = fs::read_to_string(rel_path_to_md_file)?;
+        let mut md_content = fs::read_to_string(rel_path_to_md_file)?;
+        if summary {
+            // Stop at the second header found
+            md_content = md_content.split("\n#").nth(0).unwrap().to_string();
+        }
         Ok(markdown_to_html(&md_content, &ComrakOptions::default()))
     } else {
         Ok(description.as_ref().unwrap().clone())
@@ -445,7 +449,7 @@ pub fn parse_poll_file(path: &Path) -> Result<Poll, RPError> {
     //let poll: Poll = serde_yaml::from_reader(fs::File::open(path).expect("Unable to read file"))?;
     let mut poll: Poll = serde_yaml::from_str(&content)?;
     // If we don't have a description, let's fetch from markdown
-    poll.desc = build_desc(&poll.description, &poll.desc_markdown, path)?;
+    poll.desc = build_desc(&poll.description, &poll.desc_markdown, path, false)?;
     poll.filepath = path.to_str().unwrap().to_string();
     poll.filename = match path.file_stem() {
                         Some(path) => Some(path.to_str().unwrap().to_string()),
@@ -470,14 +474,14 @@ pub fn find_poll_desc(name: &str) -> Result<Poll, RPError> {
     return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", name))));
 }
 
-pub fn get_poll_desc(name: &str) -> Result<ParsedPoll, RPError> {
+pub fn get_poll_desc(name: &str, summary: bool) -> Result<ParsedPoll, RPError> {
     let poll = find_poll_desc(name)?;
     // Copy all fields here
     let mut output = ParsedPoll::new(&poll);
 
     for entry in poll.choices {
         let path = poll.filepath.clone();
-        output.choices.push(ParsedChoice::new(entry, Path::new(&path))?);
+        output.choices.push(ParsedChoice::new(entry, Path::new(&path), summary)?);
     }
     return Ok(output);
 }

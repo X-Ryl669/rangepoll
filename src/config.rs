@@ -39,6 +39,12 @@ impl Config {
                 smtp_invite_subject: Some("Invitation for voting".to_string())
             }
     }
+
+    pub fn dump(&self) -> String {
+        format!("baseURL: {}\ndisableLogin: {}\nenableAdmin: {}\nallowEditor: {}\nsmtp: {} with {},*** sender: {}\ninviteSubject: {}",
+            self.base_url, self.disable_login, self.enable_admin, self.allow_editor, self.smtp_server.as_ref().unwrap_or(&"sendmail".to_string()), self.smtp_username.as_ref().unwrap_or(&"anonymous".to_string()), self.smtp_sender.as_ref().unwrap_or(&"no_reply@<yourhost>".to_string()), self.smtp_invite_subject.as_ref().unwrap_or(&"We need you!".to_string())
+        )
+    }
 }
 
 pub fn get_config(path: Option<&str>) -> Result<Config, RPError> {
