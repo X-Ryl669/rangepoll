@@ -491,7 +491,7 @@ fn poll_list_not_logged() -> Flash<Redirect> {
 #[get("/vote_for/<poll>", rank=1)]
 fn vote_for(poll: String, voter: Voter) -> Result<Template, Flash<Redirect>> {
     // Need to extract all available polls
-    let mut ppoll = match poll::get_poll_desc(&poll, false) {
+    let mut ppoll = match poll::get_poll_desc(&poll, true) {
         Ok(v) => v,
         Err(_) => { 
             let mut ctx = HashMap::new();

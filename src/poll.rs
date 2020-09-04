@@ -40,10 +40,10 @@ pub struct ParsedChoice {
     pub voter: Vec<String>,
 }
 impl ParsedChoice {
-    fn new(choice: Choice, path: &Path, summary: bool) -> Result<ParsedChoice, RPError> {
+    fn new(choice: Choice, path: &Path, skip_summary: bool) -> Result<ParsedChoice, RPError> {
         Ok(ParsedChoice { 
             name: choice.name.clone(),
-            desc: build_desc(&choice.description, &choice.desc_markdown, path, summary)?,
+            desc: build_desc(&choice.description, &choice.desc_markdown, path, skip_summary)?,
             vote: choice.vote.clone(),
             voter: choice.voter.clone(),
         })
@@ -171,10 +171,11 @@ pub struct ParsedPoll {
 }
 
 impl ParsedPoll {
-    fn new(poll: &Poll) -> ParsedPoll {
+    fn new(poll: &Poll, skip_summary: bool) -> ParsedPoll {
         ParsedPoll { 
             name: poll.name.clone(), 
-            desc: poll.desc.clone(), 
+            desc: if skip_summary { build_desc(&poll.description, &poll.desc_markdown, &Path::new(&poll.filepath), true).unwrap_or(poll.desc.clone()) }
+                  else { poll.desc.clone() }, 
             filepath: poll.filepath.clone(), 
             filename: Path::new(&poll.filepath).file_stem().unwrap().to_str().unwrap().to_string(), 
             allowed_participant: poll.allowed_participant.clone(), 
@@ -427,14 +428,14 @@ mod date_serde {
     }
 }
 
-pub fn build_desc(description: &Option<String>, desc_markdown: &Option<String>, path: &Path, summary: bool) -> Result<String, RPError> {
+pub fn build_desc(description: &Option<String>, desc_markdown: &Option<String>, path: &Path, skip_summary: bool) -> Result<String, RPError> {
     if description.is_none() && desc_markdown.is_none() {
         Ok(path.to_str().unwrap().to_string())
     } else if description.is_none() && desc_markdown.is_some() {
         // Read the given file and convert to HTML here
         let rel_path_to_md_file = path.with_file_name(desc_markdown.as_ref().unwrap().clone());
         let mut md_content = fs::read_to_string(rel_path_to_md_file)?;
-        if summary {
+        if !skip_summary {
             // Stop at the second header found
             md_content = md_content.split("\n#").nth(0).unwrap().to_string();
         }
@@ -474,14 +475,14 @@ pub fn find_poll_desc(name: &str) -> Result<Poll, RPError> {
     return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", name))));
 }
 
-pub fn get_poll_desc(name: &str, summary: bool) -> Result<ParsedPoll, RPError> {
+pub fn get_poll_desc(name: &str, skip_summary: bool) -> Result<ParsedPoll, RPError> {
     let poll = find_poll_desc(name)?;
     // Copy all fields here
-    let mut output = ParsedPoll::new(&poll);
+    let mut output = ParsedPoll::new(&poll, skip_summary);
 
     for entry in poll.choices {
         let path = poll.filepath.clone();
-        output.choices.push(ParsedChoice::new(entry, Path::new(&path), summary)?);
+        output.choices.push(ParsedChoice::new(entry, Path::new(&path), skip_summary)?);
     }
     return Ok(output);
 }
