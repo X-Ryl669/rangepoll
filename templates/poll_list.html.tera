@@ -9,7 +9,7 @@
 {% endif %}
 {% set orcomp = not poll.option.show_only_complete_result %}
 {% if poll.deadline_passed or orcomp %}
-  {% if poll.option.show_only_complete_result and poll.complete %}
+  {% if orcomp or poll.option.show_only_complete_result and poll.complete %}
     <a class="voteResult" href="/vote_results/{{poll.filepath}}">Consult poll results</a>
   {% endif %}
 {% endif %}

@@ -337,6 +337,17 @@ ul.form button:hover {
     padding: 30px;
   }
 }
+@media screen and (min-width: 60rem) {
+  .voteList.notActive {
+    filter: blur(1px);
+  }
+}
+@media screen and (max-width: 60rem) {
+  .voteList.notActive * {
+    color: #BBB !important;
+    -webkit-text-stroke-color: #666 !important;
+  }
+}
 .pollList deadline {
     position: absolute;
     transform: rotateZ(-45deg);
@@ -431,10 +442,11 @@ div.participant title {
 }
 div.participant ul {
     margin: auto;
-    width: max-content;
     background: #CDDEEC;
     padding: 0 2em;
     border-radius: 10px;
+    display: flex;
+    flex-wrap: wrap;
 }
 div.participant li {
     display: inline-block;
@@ -447,8 +459,9 @@ div.participant li.current {
     font-weight: 500;
 }
 div.participant {
-    width: 50%;
+    width: 48%;
     float: left;
+    margin: 0 0.5%;
 }
 hr {
     clear: both;
@@ -525,7 +538,6 @@ div.voteList > h1:first-child {
 .voteList.notActive {
     background: #DDD;
     transition: all ease 0.3s;
-    filter: blur(1px);
 }
 button.flash {
     animation: blinker 1.5s linear 5;
@@ -724,6 +736,7 @@ help a.noJS {
   color: #008;
   font-family: monospace;
   display: inline-block;
+  text-align: center;
 }
 help a.noJS:hover {
   color: #FFF;
