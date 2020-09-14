@@ -7,10 +7,9 @@
 {% if not poll.deadline_passed or poll.option.allow_late_vote %}
     <a class="loadVote" href="/vote_for/{{poll.filepath}}">Select this poll to vote</a>
 {% endif %}
-{% if poll.deadline_passed %}
-  {% set comp = poll.option.show_only_complete_result and poll.complete %}
-  {% set orcomp = not poll.option.show_only_complete_result %}
-  {% if comp or orcomp %}
+{% set orcomp = not poll.option.show_only_complete_result %}
+{% if poll.deadline_passed or orcomp %}
+  {% if poll.option.show_only_complete_result and poll.complete %}
     <a class="voteResult" href="/vote_results/{{poll.filepath}}">Consult poll results</a>
   {% endif %}
 {% endif %}
