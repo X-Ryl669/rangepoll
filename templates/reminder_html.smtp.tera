@@ -1,0 +1,36 @@
+<html>
+  <head>
+  <style type="text/css">
+h1, h2, h3, h4, h5, h6 { font-size: 1.6rem; font-family: sans-serif; font-weight: bold; }
+h2, .desc h1 { font-size: 1.41rem; }
+h3, .desc h2 { font-size: 1rem; }
+h4, .desc h3 { font-size: 0.88rem; font-weight: lighter; }
+h5, .desc h4 { font-size: 0.7rem; font-weight: lighter; }
+body { font-family: sans-serif; font-size: 1rem; font-weight: lighter; }
+a { text-decoration: none; color: #A44; font-weight: bold; }
+a:hover { text-decoration: underline; color: #F00; }
+div.desc { margin-left: 2rem; padding: 2rem; margin-bottom: 4rem; margin-top: 2rem; background-color: #F0F0F0; width: 80%; }
+strong { font-weight: bold; }
+img.center { margin-left: 25%; width: 250px; }
+
+ </style>
+</head>
+<body>
+<img class="center" src="{{ logourl }}">
+<h1>Hi {{ fullname | split(pat=" ") | first | title }},</h1>
+
+<p>
+{% if inviter %}
+  {{ inviter | title }} invited you to vote for: <strong>{{ pollname }}</strong>.
+{% else %} 
+  We have invited you for voting for: <strong>{{ pollname }}</strong>.
+{% endif %}
+</p>
+<p>The deadline date for voting is: <em>{{ deadline }}</em>.
+
+<p>It seems you haven't cast your vote yet. If you have time, it would really help
+to know your opinion by clicking <a href="{{ link }}">this link</a></p>
+
+<p>Kind regards, and thank you for you time!</p>
+</body>
+</html>

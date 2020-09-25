@@ -813,6 +813,10 @@ toolbar icon:hover {
 toolbar icon:hover::before {
   text-shadow: 1px 1px 1px #888;
 }
+icon.reminder::before {
+  content: '⏰';
+}
+
 icon.sendemail::before {
   content: '✉';
 }

@@ -1,0 +1,15 @@
+Hi {{ fullname | title }},
+
+{% if inviter %}
+  {{ inviter | title }} invited you to vote for: {{ pollname }}.
+{% else %} 
+  We invited you for voting for: {{ pollname }}.
+{% endif %}
+The deadline date for voting is: {{ deadline }}.
+
+It seems you haven't cast your vote yet. If you have time, it would really help
+to know your opinion by clicking on this link:
+
+{{ link }}
+
+Kind regards, and thank you for you time!

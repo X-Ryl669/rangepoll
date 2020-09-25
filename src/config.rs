@@ -21,6 +21,8 @@ pub struct Config {
     pub smtp_sender: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub smtp_invite_subject: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub smtp_reminder_subject: Option<String>,
 }
 
 impl Config {
@@ -36,13 +38,14 @@ impl Config {
                 smtp_username: None,
                 smtp_password: None,
                 smtp_sender: Some("no_reply@localhost".to_string()),
-                smtp_invite_subject: Some("Invitation for voting".to_string())
+                smtp_invite_subject: Some("Invitation for voting".to_string()),
+                smtp_reminder_subject: Some("Invitation for voting (reminder)".to_string()),
             }
     }
 
     pub fn dump(&self) -> String {
-        format!("baseURL: {}\ndisableLogin: {}\nenableAdmin: {}\nallowEditor: {}\nsmtp: {} with {},*** sender: {}\ninviteSubject: {}",
-            self.base_url, self.disable_login, self.enable_admin, self.allow_editor, self.smtp_server.as_ref().unwrap_or(&"sendmail".to_string()), self.smtp_username.as_ref().unwrap_or(&"anonymous".to_string()), self.smtp_sender.as_ref().unwrap_or(&"no_reply@<yourhost>".to_string()), self.smtp_invite_subject.as_ref().unwrap_or(&"We need you!".to_string())
+        format!("baseURL: {}\ndisableLogin: {}\nenableAdmin: {}\nallowEditor: {}\nsmtp: {} with {},*** sender: {}\nMail subject: invite({}), remind({})",
+            self.base_url, self.disable_login, self.enable_admin, self.allow_editor, self.smtp_server.as_ref().unwrap_or(&"sendmail".to_string()), self.smtp_username.as_ref().unwrap_or(&"anonymous".to_string()), self.smtp_sender.as_ref().unwrap_or(&"no_reply@<yourhost>".to_string()), self.smtp_invite_subject.as_ref().unwrap_or(&"We need you!".to_string()), self.smtp_reminder_subject.as_ref().unwrap_or(&"We still need you!".to_string())
         )
     }
 }
@@ -62,6 +65,8 @@ pub fn save_config(cfg: Option<&Config>, path: Option<&str>) -> Result<String, R
             cfg.smtp_username = Some("user.name".to_string());
             cfg.smtp_port = Some(25);
             cfg.smtp_password = Some("super_secret".to_string());
+            cfg.smtp_invite_subject = Some("We need you!".to_string());
+            cfg.smtp_reminder_subject = Some("We still need you!".to_string());
             serde_yaml::to_string(&cfg)?
         }
     };

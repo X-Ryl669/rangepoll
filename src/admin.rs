@@ -133,7 +133,16 @@ pub fn update_poll(cfg: Option<&config::Config>, actor: &str, action: &str, poll
             // Collect all emails for each voter and send them an email if valid
             let tokens = poll::gen_voters_token(poll_filename)?;
             let poll_desc = poll::get_poll_desc(poll_filename, false)?;
-            return send_emails(cfg.unwrap(), admin, tokens, &poll_desc);
+            return send_emails(cfg.unwrap(), admin, tokens, &poll_desc, true);
+        },
+        "reminder" => {
+            if cfg.is_none() || cfg.unwrap().smtp_server.is_none() {
+                return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("No configuration for mail sending"))));
+            }
+            // Collect all emails for each voter and send them an email if valid
+            let tokens = poll::gen_voters_token(poll_filename)?;
+            let poll_desc = poll::get_poll_desc(poll_filename, false)?;
+            return send_emails(cfg.unwrap(), admin, tokens, &poll_desc, false);
         },
         _ => Err(RPError::from(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", action))))
     } 
@@ -145,7 +154,8 @@ fn send_email_impl<'a>( admin: &Admin,
                         poll_desc: &poll::ParsedPoll, 
                         subject: &str, 
                         base_url: &str,
-                        transport: &mut impl lettre::Transport::<'a> ) -> Result<bool, RPError> {
+                        transport: &mut impl lettre::Transport::<'a>,
+                        invitation: bool ) -> Result<bool, RPError> {
     let tera = match tera::Tera::new("templates/*.smtp.tera") {
         Ok(v) => v,
         Err(e) => { return Err(RPError::from(std::io::Error::new(std::io::ErrorKind::Other, format!("Tera engine error: {}", e)))); }
@@ -163,6 +173,12 @@ fn send_email_impl<'a>( admin: &Admin,
             println!("Failed to find a valid email for {}", token.voter);
             continue;
         }
+
+        // Check if the voter already voted and it's not a invitation
+        if !invitation && poll_desc.choices.iter().any(|x| x.voter.iter().any(|y| y == &token.voter)) {
+            println!("Voter {} already voted, ignoring reminder", token.voter);
+            continue;
+        }
         
         let voter_map = admin.inv_name.get(&token.voter).unwrap();
         // Let's build the tera context
@@ -170,8 +186,14 @@ fn send_email_impl<'a>( admin: &Admin,
         context.insert("fullname", voter_map.fullname.clone());
 
         // Then generate both HTML and text version for the email
-        let mut html = tera.render("invite_html.smtp.tera", &context);
-        let txt = tera.render("invite_text.smtp.tera", &context);
+        let mut html = tera.render(match invitation { 
+                                            true => "invite_html.smtp.tera",
+                                            false => "reminder_html.smtp.tera"
+                                    }, &context);
+        let txt = tera.render(match invitation {
+                                            true => "invite_text.smtp.tera",
+                                            false => "reminder_text.smtp.tera"
+                                }, &context);
         if txt.is_err() {
             eprintln!("Failed to render SMTP's textual invite message from invite_text.smtp.tera");
             continue;
@@ -204,7 +226,7 @@ fn send_email_impl<'a>( admin: &Admin,
     return Ok(true);
 }
 
-pub fn send_emails(cfg: &config::Config, admin: Admin, tokens: Vec<poll::Token>, poll_desc: &poll::ParsedPoll) -> Result<bool, RPError> {
+pub fn send_emails(cfg: &config::Config, admin: Admin, tokens: Vec<poll::Token>, poll_desc: &poll::ParsedPoll, invitation: bool) -> Result<bool, RPError> {
     // Need to extract the sendmail configuration
   //  let mut recipients = Vec::new();
   //  let mut recipients_name = Vec::new();
@@ -217,13 +239,16 @@ pub fn send_emails(cfg: &config::Config, admin: Admin, tokens: Vec<poll::Token>,
     let host = host_url.host_str().unwrap_or("localhost").to_string();
     let no_reply_default = format!("no_reply@{}", host).clone();
     let sender = cfg.smtp_sender.as_ref().unwrap_or(&no_reply_default);
-    let subject = cfg.smtp_invite_subject.as_ref().unwrap_or(&"Invitation to vote".to_string()).clone();
+    let subject = match invitation { 
+                        true => cfg.smtp_invite_subject.as_ref().unwrap_or(&"Invitation to vote".to_string()).clone(),
+                        false => cfg.smtp_reminder_subject.as_ref().unwrap_or(&"Reminder to vote".to_string()).clone()
+                  };
     let base_url = format!("{}/", cfg.base_url);
 
     // Either build a SMTP transport or use system's sendmail 
     if cfg.smtp_server.as_ref().unwrap() == "sendmail" {
         let mut transport = SendmailTransport::new();
-        return send_email_impl(&admin, &sender, &tokens, poll_desc, &subject, &base_url, &mut transport);
+        return send_email_impl(&admin, &sender, &tokens, poll_desc, &subject, &base_url, &mut transport, invitation);
     } else
     {
         let mut mailer = match SmtpClient::new_simple(cfg.smtp_server.as_ref().unwrap()) { //&format!("{}:{}", cfg.smtp_server.as_ref().unwrap(), match cfg.smtp_port { Some(v) => v, None => 25u16 })) {
@@ -241,7 +266,7 @@ pub fn send_emails(cfg: &config::Config, admin: Admin, tokens: Vec<poll::Token>,
             mailer = mailer.credentials(Credentials::new(cfg.smtp_username.as_ref().unwrap().clone(), cfg.smtp_password.as_ref().unwrap_or(&"".to_string()).clone()));
         }
         let mut transport = mailer.transport();
-        let res = send_email_impl(&admin, &sender, &tokens, poll_desc, &subject, &base_url, &mut transport);
+        let res = send_email_impl(&admin, &sender, &tokens, poll_desc, &subject, &base_url, &mut transport, invitation);
         transport.close();
         return res;
     };

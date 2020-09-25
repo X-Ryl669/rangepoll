@@ -46,7 +46,7 @@
    </li>
 </ul>
 {% set pollname = poll.filename | escape %}
-</span><span class="td"><toolbar data-rel="{{pollname}}" data-dest="/update_poll"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="delete">Delete</icon></toolbar></span></div>
+</span><span class="td"><toolbar data-rel="{{pollname}}" data-dest="/update_poll"><icon class="edit">Edit</icon><icon class="sendemail">Send emails</icon><icon class="reminder">Reminder</icon><icon class="delete">Delete</icon></toolbar></span></div>
 {% endfor %}
 <form method="POST" action="/update_poll" class='tr'>
   <span class="td"><input type="text" name="new_poll_filename"></span><span class="td"><input type="text" name="new_poll_name"></span><span class="td"></span><span class="td"><button>Create new poll</button></span>
